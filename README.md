@@ -75,20 +75,18 @@ Settlement math and rate handling stay out of the view layer so they can be test
 4. Daily expense — budget, add/edit, list with summary card
 5. Daily expense — monthly impulse review
 6. Daily expense — reports
-7. Travel — data models
-8. Travel — ledgers, detail, add expense with live split validation
-9. Travel — member summary and per-member detail
-10. Travel — settlement (rate API, local cache, manual fallback, debt simplification)
-11. Wrap-up — unit tests, data export, README
-12. *(deferred)* Daily expense — Lock Screen widget
+7. Daily expense — Lock Screen widget
+8. Travel — data models
+9. Travel — ledgers, detail, add expense with live split validation
+10. Travel — member summary and per-member detail
+11. Travel — settlement (rate API, local cache, manual fallback, debt simplification)
+12. Wrap-up — unit tests, data export, README
 
 ## Constraints
 
-**The widget is deferred.** Sharing the SwiftData store between the app and a widget extension requires an App Group, which may not be available to free "Personal Team" signing. That is verified in step 1. The widget is a nice-to-have, so both core modules ship first, and the US$99/year membership only becomes a question afterwards — and only if the app earns daily use.
+**Apps signed with a free Apple ID expire after 7 days** and need a reinstall from Xcode. Data survives a reinstall, but not deleting the app, so a CSV/JSON export lands in step 12 as a backup path.
 
-**Apps signed with a free Apple ID expire after 7 days** and need a reinstall from Xcode. Data survives a reinstall, but not deleting the app, so a CSV/JSON export lands in step 11 as a backup path.
-
-Enrolling in the Apple Developer Program does not imply App Store distribution — it is a signing and capability membership, and nothing is ever submitted for review unless you choose to.
+Sharing the SwiftData store with the widget extension needs an App Group. This was verified to work under free "Personal Team" signing — the entitlement is present in a codesigned device build — so no paid membership is required for anything in this project.
 
 ## Documentation
 
