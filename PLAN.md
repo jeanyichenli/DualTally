@@ -72,6 +72,7 @@
   - **墊付管理畫面（`AdvancePaymentView`）**：從列表右上角「墊付」進入，列出所有墊付紀錄（幫誰墊付、用途、日期、金額、是否已歸還），頂部顯示「尚未收回」總額。點選某筆標記為「已歸還」→ 寫回該筆 `Expense.isRepaid = true`、`repaidDate`、關閉墊付 → 該筆不再計入我的花費 → 可用餘額回升 → 呼叫 `WidgetCenter.shared.reloadTimeline` 刷新小工具
   - **資料欄位**：在 `Expense` 加 `isAdvancePayment: Bool`、`advancePaidForName: String?`、`isRepaid: Bool`、`repaidDate: Date?`（不另開 `@Model`，因為墊付本質是「某一筆支出」的屬性）
 - **分類（用途類型）**：首次啟動 seed 一組預設清單（飲食、交通、娛樂、醫療、購物、居住、學習、其他），使用者可**自行增減**——透過預算設定頁進入 `CategoryManagementView` 新增自訂分類（名稱＋從精選 SF Symbol 挑一個圖示）或刪除任一分類（含預設）。刪除分類採 `.nullify`，既有支出不會被刪、只會變成未分類。以 App Group `UserDefaults` 的「已 seed」旗標避免使用者刪光預設後下次啟動又被塞回
+- **支付方式（現金／信用卡…）**：與「用途分類」**互相獨立的第二個分類軸**，記錄每筆支出是怎麼付的。首次啟動 seed 預設「現金、信用卡」，使用者可**自行增減**——透過預算設定頁進入 `PaymentMethodManagementView` 新增（名稱＋SF Symbol）或刪除任一項（含預設）。資料上為 `Expense.paymentMethod`（`@Model PaymentMethod`，與 `ExpenseCategory` 結構平行），刪除同樣採 `.nullify`、既有支出只會變成未指定，並以獨立的「已 seed」旗標守護。與「已付款（`isPaid`）」是不同概念：`isPaid` 是錢是否已離開帳戶、`paymentMethod` 是用哪種方式付
 - **當月報表**：
   - 當月預算（使用者設定值）
   - 可用餘額 = 預算 − 全部支出（含未付款，因為未付款視為已預定要花的錢；但**已歸還的墊付不計入**）
@@ -86,7 +87,8 @@
      - 依分類：先選一個分類（chips 單選），只看該分類在各期的金額變化趨勢
   - 用 **Swift Charts** 的 `BarMark` 實作（iOS 16+ 內建框架，不需額外套件），資料來源是 `Expense`，依 `date` 分組加總（週/月/年、總支出），以及依 `ExpenseCategory` 分組（分類佔比、依分類）
 - **鎖定畫面小工具**：只給日常記帳用，顯示當月「可用餘額」這一個數字（跟報表用同一個計算公式：預算 − 全部支出），純數字呈現、不用互動；每次新增/編輯/刪除支出或修改當月預算後，主 App 要呼叫 `WidgetCenter.shared.reloadTimeline` 讓小工具即時更新
-- **日曆瀏覽模式**：`DailyExpenseListView` 提供「列表 / 日曆」兩種瀏覽模式，右上角一顆工具列鈕來回雙向切換（列表模式顯示 `calendar` icon、日曆模式顯示 `list.bullet` icon，icon 永遠代表要切過去的那一邊）。頂部 stat-card 在兩種模式都固定在上方，只切換下半部。日曆為 `LazyVGrid` 月曆格：**有記帳的日子以小圓點標示**（僅標示有無，不在格內放金額），點選某天 → 下方顯示「當日小計 + 該日支出明細」，並可用「＋」開新增表單、**日期預先帶入該天**。一致性註記：日曆用**日曆月**翻頁，與 stat-card 依「每月起算日」界定的週期無關——它是瀏覽輔助，不是餘額檢視
+- **支出列表依日期分段**：列表模式的支出**以「日」為單位分段**（`List` 的 `Section`），每段段標為醒目的「日期（含星期）＋當日小計」，同一天的支出集中在同一段、日期不再只放在每列右側的小字。段依日期由新到舊排列，段內維持原有的時間順序。當日小計沿用 `DailyExpenseCalculator.countedTotal`（已歸還墊付不計），與 stat-card、日曆口徑一致。`ExpenseRow` 因此移除每列右側的日期（日期資訊已由段標／日曆選中日提供）
+- **日曆瀏覽模式**：`DailyExpenseListView` 提供「列表 / 日曆」兩種瀏覽模式，右上角一顆工具列鈕來回雙向切換（列表模式顯示 `calendar` icon、日曆模式顯示 `list.bullet` icon，icon 永遠代表要切過去的那一邊）。頂部 stat-card 在兩種模式都固定在上方，只切換下半部。日曆為 `LazyVGrid` 月曆格：**有記帳的日子以小圓點標示**（僅標示有無，不在格內放金額），點選某天 → 下方顯示「當日小計 + 該日支出明細」，右上角「＋」開新增表單、**日期預先帶入該天**（＋放在當日小計列、與可點擊的支出列分開以免誤觸）。**切換月份可用左右滑動或上方箭頭鈕**（箭頭鈕給足夠的點擊範圍並與上方 stat-card 保持距離，避免誤觸到預算卡）。一致性註記：日曆用**日曆月**翻頁，與 stat-card 依「每月起算日」界定的週期無關——它是瀏覽輔助，不是餘額檢視
 - **不記錄收入（設計決策）**：本 App **不提供通用收入記帳**。使用者實務上唯二會想記「進帳」的情境都已被現有機制涵蓋——（1）**充當預算**：直接設定/調整當月 `MonthlyBudget` 即可，收入等同預算；（2）**墊付還款**：在墊付管理畫面勾選「已歸還」，該筆即從所有統計排除、可用餘額自動回升，效果等同一筆進帳且更貼合語意。因此維持不變式 `可用餘額 = 預算 − 全部支出（已歸還墊付除外）`，不引入平行的收入概念以免整個口徑（報表、小工具）複雜化；偶發額外進帳的建議做法是「調高當月預算」
 
 ### 旅遊記帳
@@ -116,7 +118,7 @@
 1. **環境建置**：安裝/更新 Xcode、註冊 Apple ID 到 Xcode、建立空的 SwiftUI + SwiftData 專案、推第一版到 GitHub（含 `.gitignore`，用 GitHub 官方 Swift/Xcode 範本）
    - ✅ **已完成**：專案已建立（bundle id `com.yichenli.DualTally`、deployment target iOS 17.0、SwiftData 範本），App Groups 驗證通過（見第八節風險 1）
 2. **App 骨架**：TabView 兩個分頁（日常記帳 / 旅遊記帳），兩分頁狀態互相獨立、可隨時切換
-3. **日常記帳 — 資料模型**：`MonthlyBudget`、`ExpenseCategory`、`Expense`（SwiftData `@Model`，含墊付欄位 `isAdvancePayment`／`advancePaidForName`／`isRepaid`／`repaidDate`），以及「每月起算日」設定（存 App Group 共用容器，供小工具讀取同一週期）
+3. **日常記帳 — 資料模型**：`MonthlyBudget`、`ExpenseCategory`、`PaymentMethod`、`Expense`（SwiftData `@Model`，含 `category`／`paymentMethod` 關聯與墊付欄位 `isAdvancePayment`／`advancePaidForName`／`isRepaid`／`repaidDate`），以及「每月起算日」設定（存 App Group 共用容器，供小工具讀取同一週期）
 4. **日常記帳 — UI**：設定當月預算與「每月起算日」、新增/編輯支出（含「墊付」開關＋幫誰墊付欄位）、列表頂部 stat-card（預算/可用餘額/已花費，依起算日週期計算）、墊付列標記、**列表/日曆兩種瀏覽模式切換**（日曆格圓點標示有記帳的日子，點某天看當日明細並可帶入日期新增）
 5. **日常記帳 — 墊付管理**：`AdvancePaymentView`，列出未歸還/已歸還墊付與「尚未收回」總額，勾選歸還 → 關閉墊付、回補可用餘額、`WidgetCenter.shared.reloadTimeline` 刷新小工具
 6. **日常記帳 — 復盤功能**：支出清單逐列（日期＋用途＋金額）勾選衝動購物、復盤統計畫面（當月範圍依「每月起算日」界定）
@@ -141,7 +143,8 @@ DualTally/
 │   ├── Models/                         # SwiftData @Model
 │   │   ├── MonthlyBudget.swift
 │   │   ├── ExpenseCategory.swift
-│   │   ├── Expense.swift               # 日常記帳：含 isImpulse 與墊付欄位（isAdvancePayment/advancePaidForName/isRepaid/repaidDate）
+│   │   ├── PaymentMethod.swift         # 支付方式（現金/信用卡…），結構平行 ExpenseCategory
+│   │   ├── Expense.swift               # 日常記帳：含 category/paymentMethod、isImpulse 與墊付欄位（isAdvancePayment/advancePaidForName/isRepaid/repaidDate）
 │   │   ├── TravelLedger.swift          # 含預設幣別（僅為新增消費的預設值）
 │   │   ├── Member.swift                # 含 isSettled 已付清旗標
 │   │   ├── TravelExpense.swift         # 含逐筆 currency 欄位
@@ -152,6 +155,7 @@ DualTally/
 │   │   │   ├── DailyExpenseListView.swift  # 根畫面，含頂部 stat-card、報表/復盤/墊付入口、列表/日曆切換
 │   │   │   ├── ExpenseCalendarView.swift    # 日曆瀏覽模式：月曆格圓點＋選中日明細＋帶入日期新增
 │   │   │   ├── CategoryManagementView.swift # 分類管理：列出、新增（名稱＋SF Symbol）、刪除分類
+│   │   │   ├── PaymentMethodManagementView.swift # 支付方式管理：列出、新增、刪除（結構平行分類管理）
 │   │   │   ├── DailyExpenseSettingsView.swift # 預算/每月起算日設定，含分類管理入口
 │   │   │   ├── AddEditExpenseView.swift
 │   │   │   ├── MonthlyReviewView.swift     # 月度復盤（逐列日期＋用途＋金額，勾選衝動購物；依起算日界定當月）
@@ -206,7 +210,7 @@ App 根畫面是 `TabView`，「日常記帳」與「旅遊記帳」兩個分頁
 
 - **視覺樣式**：直接採用 SwiftUI 系統元件預設外觀（`List`、`Form`、系統色彩），已符合 Apple HIG，不另外設計視覺。報表的分類配色僅為示意，正式配色留待實作階段再定
 - **轉場**：膠囊標籤的「Sheet」對應 `.sheet()`，「Push」對應 `NavigationStack` 推頁
-- **日常記帳列表**：每列左側圓點區分付款狀態（實心＝已付款、空心＝未付款）
+- **日常記帳列表**：**只有「未付款」的列**在左側顯示一個空心圓點標記，已付款（多數情況）不顯示任何標記以減少視覺雜訊；未付款的支出仍看得出來
 - **報表畫面**：兩排 segmented control 上下疊放，上排「週/月/年」、下排「總支出/分類佔比/依分類」；「總支出」模式底部顯示當期總額與較上期增減百分比（例如 `19,760 ▼8% 較上月`），「依分類」模式底部顯示該分類的期間均值（例如 `1,850 / 週`）
 - **帳本詳情**：「成員支出總覽」是列表的第一列（非工具列按鈕）；底部兩顆按鈕並排 —— `＋新增`（外框樣式）／`結算`（實心樣式）；消費列左側顯示**付款人**頭像縮寫，日期以相對天數呈現（`Day 1`、`Day 2`）
 - **成員支出總覽／成員明細**：頂部各有一個總計框（`本趟總支出 ¥52,000`／`總計 ¥24,600`）
@@ -219,11 +223,12 @@ App 根畫面是 `TabView`，「日常記帳」與「旅遊記帳」兩個分頁
 
 | 畫面 | 進入方式 | 說明 |
 |---|---|---|
-| `DailyExpenseListView` | 根畫面 | 頂部 stat-card（預算/可用餘額/已花費，依起算日週期），下方支出列表（墊付列標「墊 ○○」），右上角「列表/日曆切換」＋「報表」「復盤」「墊付」入口，右下角＋新增 |
-| `ExpenseCalendarView` | 列表右上角〈切換鈕〉 | 月曆格瀏覽模式，有記帳的日子標圓點，點某天顯示當日小計＋明細，可「＋」帶入該日新增；與列表雙向切換，stat-card 共用固定於上方 |
-| `AddEditExpenseView` | Sheet ← 列表〈＋〉/ 日曆〈＋〉/ 點列表項目 | 金額、分類、日期（日曆進入時帶入該天）、已付款、墊付（開啟才顯示「幫誰墊付」）、備註 |
-| `DailyExpenseSettingsView` | Sheet ← 點 stat-card | 設定本週期預算、每月起算日，並提供「分類管理」入口 |
+| `DailyExpenseListView` | 根畫面 | 無大標題（Tab 已標示）+ 頂部精簡 stat-card（預算/可用餘額/已花費，依起算日週期），下方支出列表**依日期分段**（段標＝日期＋當日小計，墊付列標「墊 ○○」），右上角「列表/日曆切換」＋「報表」「復盤」「墊付」入口，右下角＋新增 |
+| `ExpenseCalendarView` | 列表右上角〈切換鈕〉 | 月曆格瀏覽模式，有記帳的日子標圓點，點某天顯示當日小計＋明細，＋在小計列帶入該日新增；**月份可左右滑動或箭頭鈕切換**；與列表雙向切換，stat-card 共用固定於上方 |
+| `AddEditExpenseView` | Sheet ← 列表〈＋〉/ 日曆〈＋〉/ 點列表項目 | 金額、分類、**支付方式**、日期（日曆進入時帶入該天）、已付款、墊付（開啟才顯示「幫誰墊付」）、備註 |
+| `DailyExpenseSettingsView` | Sheet ← 點 stat-card | 設定本週期預算、每月起算日，並提供「分類管理」「支付方式」入口 |
 | `CategoryManagementView` | Push ← 預算設定〈分類管理〉 | 列出分類，右上角＋新增（名稱＋SF Symbol），滑動刪除；刪除採 nullify，既有支出變未分類 |
+| `PaymentMethodManagementView` | Push ← 預算設定〈支付方式〉 | 列出支付方式，右上角＋新增（名稱＋SF Symbol），滑動刪除；刪除採 nullify，既有支出變未指定 |
 | `ReportView` | Push ← 列表〈報表〉 | 週/月/年 × 總支出/分類佔比/依分類，三層切換都在同一畫面內完成（已歸還墊付不計） |
 | `MonthlyReviewView` | Push ← 列表〈復盤〉 | 每列 `[核取框][日期] 用途 金額`，勾選寫回 `isImpulse`，底部統計佔比（當月依起算日界定） |
 | `AdvancePaymentView` | Push ← 列表〈墊付〉 | 頂部「尚未收回」總額，每列 `[核取框][日期] 用途·幫誰墊付 金額`，勾選＝已歸還 → 關閉墊付、回補可用餘額、刷新小工具 |
@@ -271,6 +276,14 @@ App 根畫面是 `TabView`，「日常記帳」與「旅遊記帳」兩個分頁
 - **資料不會因為過期而遺失**：過期的是簽署憑證，不是 App 本身。App 的資料容器仍留在裝置上，用 Xcode 重裝（相同 bundle identifier）屬於覆蓋安裝，SwiftData 資料庫會保留
 - **但以下情況資料會遺失**：手動從裝置刪除 App、變更 bundle identifier、或 Xcode 因簽署身分變動而要求先刪除再安裝
 - **建議緩解措施**：因為這是要長期累積資料的記帳 App，建議在路線圖第 13 步「收尾」時補做一個**資料匯出功能**（匯出 CSV／JSON 到「檔案」App 或分享表單），確保任何情況下資料都能自行備份還原
+
+### 待實作：回看過往週期（目前只顯示當前週期）
+
+- **現況**：`DailyExpenseListView` 的 stat-card、列表模式都固定用 `BudgetCycleCalculator.currentCycle()`，只呈現「當前週期」的可用餘額／已花費與支出流水
+- **落差**：支出以「該筆日期」歸屬週期，所以在新週期補記一筆屬於上一週期的支出（例如起算日 5 號，8/5 當天補記一筆日期 7/28 的支出 → 該筆歸入 7/5–8/4 週期）時，它雖然正確計入上一週期的統計，但**不會**出現在當前（8 月）週期的 stat-card 與列表中，使用者當下看不到自己剛補記的那筆
+- **可見的地方**：日曆瀏覽模式按「日曆月」翻頁、顯示所有支出（不受週期限制），翻到 7 月即可看到該筆的圓點與明細——可作為暫時的查看途徑
+- **待實作方向**：在 stat-card 或列表加上「上一／下一週期」切換（例如 stat-card 兩側 `‹ ›`），讓可用餘額、已花費、支出流水都能切到任一過往週期檢視；月度復盤與報表本身已含週期／時間粒度選擇，切換週期的入口可與其一致。歸屬邏輯（`BudgetCycleCalculator.cycle(containing:startDay:)`）不需改動，只需讓 UI 能選定要顯示的週期
+- **歸類**：日常記帳 UI 增補，優先度中；不影響現有計算正確性，僅是可見性/瀏覽便利
 
 ### 待確認事項：匯率 API 尚未選定
 
