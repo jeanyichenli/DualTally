@@ -267,11 +267,14 @@ struct ExpenseRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(expense.category?.name ?? "未分類")
+                // Advance badge and note are independent: an advance can also
+                // carry a note, so show both lines rather than one or the other.
                 if expense.isOutstandingAdvance, let name = expense.advancePaidForName {
                     Text("墊 \(name)")
                         .font(.caption)
                         .foregroundStyle(.orange)
-                } else if let note = expense.note, !note.isEmpty {
+                }
+                if let note = expense.note, !note.isEmpty {
                     Text(note)
                         .font(.caption)
                         .foregroundStyle(.secondary)
