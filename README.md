@@ -20,12 +20,15 @@ Everyday spending and group travel spending are different problems. Daily tracki
 - **Spent** counts only expenses marked as paid
 - **Monthly review**: at month end, go through the month's expenses and flag which ones were impulse purchases in hindsight, then see the impulse share of total spending. The flag never appears in the add/edit form — you rarely think you're being impulsive in the moment
 - **Reports**: bar charts across week / month / year, in three view modes — total spending, category breakdown (stacked), or a single category's trend over time
+- **Calendar browse mode**: toggle the list into a month calendar; days with expenses are dotted, tapping a day shows that day's total and line items, and you can add an expense pre-dated to that day
+- **No income tracking, by design**: the two cases where you'd log money coming in are already covered — a budget top-up is just the monthly budget, and an advance being paid back is handled by marking it repaid — so the app keeps the single invariant *available balance = budget − expenses* rather than adding a parallel income concept
 - **Lock Screen widget**: one number, the current month's available balance
 
 ### Travel bill splitting
 
 - Create a ledger per trip with a default currency and a list of members
 - Record each expense with a name, amount, **its own currency** (defaulting to the ledger's), date, who paid, and how it splits — evenly, or a custom per-person amount that must sum to the total before it can be saved
+- **Per-day view**: the ledger groups expenses by day (Day 1, Day 2…); tap a day to see every member's spending that day and the day's total, converted to the ledger's default currency
 - **Member summary**: total each person's *share* across the trip (by who the expense was split to, not who fronted the cash), converted to the ledger's default currency, drilling down into the individual line items. Each member carries a **settled-up flag** for people who squared their share on the spot
 - **Settlement**: pick any settlement currency; each expense converts from its own currency using the exchange rate *from the day it happened*, not the rate on settlement day. Net each person out — members already flagged as settled-up appear in the list but need no transfer — then run a debt-simplification pass so everyone else settles in the fewest possible transfers
 - **Works offline**: rates are fetched and cached locally when there's a connection; if a fetch fails you enter the rate by hand and it caches the same way. Recording and settling never require the network
