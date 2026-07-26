@@ -56,19 +56,28 @@ struct ExpenseCalendarView: View {
 
     private var monthHeader: some View {
         HStack {
-            Button { changeMonth(by: -1) } label: {
-                Image(systemName: "chevron.left")
-            }
+            monthStepButton(systemName: "chevron.left", delta: -1, label: "上個月")
             Spacer()
             Text(displayedMonth.formatted(.dateTime.year().month(.wide)))
                 .font(.headline)
             Spacer()
-            Button { changeMonth(by: 1) } label: {
-                Image(systemName: "chevron.right")
-            }
+            monthStepButton(systemName: "chevron.right", delta: 1, label: "下個月")
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 6)
+    }
+
+    /// A chevron step button with a generous padded hit area so it's easy to hit
+    /// deliberately without straying onto the stat-card above.
+    private func monthStepButton(systemName: String, delta: Int, label: String) -> some View {
+        Button { changeMonth(by: delta) } label: {
+            Image(systemName: systemName)
+                .font(.headline)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel(label)
     }
 
     private var weekdayHeader: some View {
@@ -84,16 +93,31 @@ struct ExpenseCalendarView: View {
     }
 
     private var monthGrid: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 6) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 2) {
             ForEach(Array(monthDays.enumerated()), id: \.offset) { _, day in
                 if let day {
                     dayCell(day)
                 } else {
-                    Color.clear.frame(height: 40)
+                    Color.clear.frame(height: 34)
                 }
             }
         }
         .padding(.horizontal, 4)
+        .contentShape(Rectangle())
+        // Swipe left/right across the grid to page months, as an alternative to
+        // the chevrons. Only acts on a mostly-horizontal drag so it doesn't fight
+        // vertical scrolling elsewhere.
+        .gesture(
+            DragGesture(minimumDistance: 24)
+                .onEnded { value in
+                    guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                    if value.translation.width < 0 {
+                        changeMonth(by: 1)
+                    } else if value.translation.width > 0 {
+                        changeMonth(by: -1)
+                    }
+                }
+        )
     }
 
     private func dayCell(_ day: Date) -> some View {
@@ -103,21 +127,21 @@ struct ExpenseCalendarView: View {
         return Button {
             selectedDay = calendar.startOfDay(for: day)
         } label: {
-            VStack(spacing: 3) {
+            VStack(spacing: 2) {
                 Text("\(calendar.component(.day, from: day))")
-                    .font(.callout)
+                    .font(.subheadline)
                     .foregroundStyle(isSelected ? Color.white : (isToday ? Color.accentColor : .primary))
                 Circle()
                     .fill(hasExpenses ? Color.accentColor : Color.clear)
                     .frame(width: 5, height: 5)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 40)
+            .frame(height: 34)
             .background(
                 Circle()
                     .fill(isSelected ? Color.accentColor : Color.clear)
-                    .frame(width: 34, height: 34)
-                    .offset(y: -4)
+                    .frame(width: 30, height: 30)
+                    .offset(y: -3)
             )
         }
         .buttonStyle(.plain)
@@ -125,25 +149,32 @@ struct ExpenseCalendarView: View {
 
     private var selectedDayDetail: some View {
         VStack(spacing: 0) {
+            // Header carries the day, its total, and the add button. Keeping add
+            // up here — away from the tappable expense rows below — means it can't
+            // be hit by accident while browsing the day's line items.
             HStack {
                 Text(selectedDay.formatted(.dateTime.month(.abbreviated).day().weekday()))
                     .font(.subheadline.weight(.medium))
                 Spacer()
                 Text(selectedDayTotal.formattedAsDailyCurrency())
                     .font(.subheadline.weight(.semibold))
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 10)
-
-            if selectedDayExpenses.isEmpty {
-                Spacer()
                 Button {
                     showingAddExpense = true
                 } label: {
-                    Label("在這天新增支出", systemImage: "plus.circle")
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
                 }
-                .padding()
-                Spacer()
+                .accessibilityLabel("在這天新增支出")
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+
+            if selectedDayExpenses.isEmpty {
+                ContentUnavailableView {
+                    Label("這天尚無支出", systemImage: "calendar.badge.plus")
+                } description: {
+                    Text("點右上角＋新增")
+                }
             } else {
                 List {
                     ForEach(selectedDayExpenses) { expense in
@@ -156,17 +187,9 @@ struct ExpenseCalendarView: View {
                     }
                 }
                 .listStyle(.plain)
-                .safeAreaInset(edge: .bottom) {
-                    Button {
-                        showingAddExpense = true
-                    } label: {
-                        Label("在這天新增支出", systemImage: "plus.circle")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .padding()
-                }
             }
         }
+        .frame(maxHeight: .infinity)
     }
 
     private var monthDays: [Date?] {
@@ -185,7 +208,9 @@ struct ExpenseCalendarView: View {
 
     private func changeMonth(by delta: Int) {
         if let newMonth = calendar.date(byAdding: .month, value: delta, to: displayedMonth) {
-            displayedMonth = calendar.startOfMonth(for: newMonth)
+            withAnimation(.easeInOut(duration: 0.2)) {
+                displayedMonth = calendar.startOfMonth(for: newMonth)
+            }
         }
     }
 }

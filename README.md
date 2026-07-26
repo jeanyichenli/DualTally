@@ -17,13 +17,15 @@ The interface is **bilingual (Traditional Chinese / English)** and follows the d
 - Manually set a total budget for each month (no per-category budgets, no automatic carry-over)
 - **Configurable month start day**: a "month" begins on a user-chosen day (1–28), not necessarily the 1st — balances, review, and reports all follow that cycle, and so does the widget
 - Log expenses with amount, category, date, paid/unpaid status, and an optional note
+- **Date-grouped list**: the expense list is sectioned by day, each header showing the date and that day's subtotal, so same-day spending reads as one block rather than a stream of rows with a small date tucked on the right
 - **Advance payments**: flag an expense as money fronted for someone else (with their name). It counts as your own spending until they pay you back; a dedicated tracking screen lists who owes you what, and marking one as repaid drops it from every total and restores the balance
 - **Available balance** = budget − *all* expenses, including unpaid ones (unpaid money is already committed); repaid advances are excluded everywhere
 - **Spent** counts only expenses marked as paid
 - **Monthly review**: at month end, go through the month's expenses and flag which ones were impulse purchases in hindsight, then see the impulse share of total spending. The flag never appears in the add/edit form — you rarely think you're being impulsive in the moment
 - **Reports**: bar charts across week / month / year, in three view modes — total spending, category breakdown (stacked), or a single category's trend over time
-- **Calendar browse mode**: toggle the list into a month calendar; days with expenses are dotted, tapping a day shows that day's total and line items, and you can add an expense pre-dated to that day
+- **Calendar browse mode**: toggle the list into a month calendar; days with expenses are dotted, tapping a day shows that day's total and line items, and you can add an expense pre-dated to that day. Page between months by swiping left/right or with the arrows
 - **Custom categories**: ships with sensible defaults (food, transport, etc.) that you can add to or delete from a category-management screen — deleting one leaves its past expenses intact (they become uncategorized)
+- **Payment method**: a second, independent axis (cash / credit card …) recorded per expense, defaulting to cash and credit card and editable on its own management screen the same way categories are — distinct from paid/unpaid, which is about whether the money has left your account
 - **No income tracking, by design**: the two cases where you'd log money coming in are already covered — a budget top-up is just the monthly budget, and an advance being paid back is handled by marking it repaid — so the app keeps the single invariant *available balance = budget − expenses* rather than adding a parallel income concept
 - **Lock Screen widget**: one number, the current month's available balance
 

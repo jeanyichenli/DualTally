@@ -16,6 +16,7 @@ struct DualTallyApp: App {
         let schema = Schema([
             MonthlyBudget.self,
             ExpenseCategory.self,
+            PaymentMethod.self,
             Expense.self,
         ])
         // Store lives in the App Group container so the widget extension reads
@@ -30,6 +31,7 @@ struct DualTallyApp: App {
             fatalError("Failed to create ModelContainer: \(error)")
         }
         ExpenseCategory.seedDefaultsIfNeeded(in: modelContainer.mainContext)
+        PaymentMethod.seedDefaultsIfNeeded(in: modelContainer.mainContext)
     }
 
     var body: some Scene {

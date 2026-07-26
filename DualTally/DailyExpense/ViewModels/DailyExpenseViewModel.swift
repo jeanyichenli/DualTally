@@ -54,6 +54,19 @@ enum DailyExpenseCalculator {
             .reduce(Decimal.zero) { $0 + $1.amount }
     }
 
+    /// Groups expenses into per-day buckets, newest day first, preserving the
+    /// incoming order within each day. Drives the date-sectioned list so same-day
+    /// expenses sit under one prominent date header instead of relying on a small
+    /// per-row date.
+    static func groupedByDay(
+        _ expenses: [Expense],
+        calendar: Calendar = .current
+    ) -> [(day: Date, expenses: [Expense])] {
+        Dictionary(grouping: expenses) { calendar.startOfDay(for: $0.date) }
+            .map { (day: $0.key, expenses: $0.value) }
+            .sorted { $0.day > $1.day }
+    }
+
     /// The set of calendar days (start-of-day) that have at least one expense,
     /// used to place dots on the calendar grid. Presence ignores the
     /// counts-as-spending rule so a repaid advance still leaves a visible mark
