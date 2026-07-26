@@ -60,7 +60,13 @@ struct DailyExpenseListView: View {
             .navigationTitle("日常記帳")
             .toolbar { toolbarContent }
             .navigationDestination(for: Route.self, destination: destination)
-            .overlay(alignment: .bottomTrailing) { addButton }
+            .overlay(alignment: .bottomTrailing) {
+                // Calendar mode has its own day-specific "在這天新增支出" button,
+                // so the floating add button only appears in list mode.
+                if browseMode == .list {
+                    addButton
+                }
+            }
             .sheet(isPresented: $showingAddExpense) {
                 AddEditExpenseView()
             }
