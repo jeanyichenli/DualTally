@@ -8,6 +8,8 @@ Offline-first iOS expense tracker — monthly budgeting for daily spending, plus
 
 Everyday spending and group travel spending are different problems. Daily tracking is about *staying under a monthly budget in one currency*. Travel is about *who paid what, who owes whom, across currencies, often with no signal*. DualTally keeps them as two independent tabs rather than forcing one model to cover both.
 
+The interface is **bilingual (Traditional Chinese / English)** and follows the device language automatically.
+
 ## Modules
 
 ### Daily expense tracking
@@ -21,6 +23,7 @@ Everyday spending and group travel spending are different problems. Daily tracki
 - **Monthly review**: at month end, go through the month's expenses and flag which ones were impulse purchases in hindsight, then see the impulse share of total spending. The flag never appears in the add/edit form — you rarely think you're being impulsive in the moment
 - **Reports**: bar charts across week / month / year, in three view modes — total spending, category breakdown (stacked), or a single category's trend over time
 - **Calendar browse mode**: toggle the list into a month calendar; days with expenses are dotted, tapping a day shows that day's total and line items, and you can add an expense pre-dated to that day
+- **Custom categories**: ships with sensible defaults (food, transport, etc.) that you can add to or delete from a category-management screen — deleting one leaves its past expenses intact (they become uncategorized)
 - **No income tracking, by design**: the two cases where you'd log money coming in are already covered — a budget top-up is just the monthly budget, and an advance being paid back is handled by marking it repaid — so the app keeps the single invariant *available balance = budget − expenses* rather than adding a parallel income concept
 - **Lock Screen widget**: one number, the current month's available balance
 
@@ -47,6 +50,7 @@ The wireframes exist to confirm information architecture and screen transitions,
 | Persistence | SwiftData, fully local |
 | Charts | Swift Charts |
 | Widget | WidgetKit (`.accessoryCircular`) |
+| Localization | String Catalog — Traditional Chinese + English |
 | Minimum target | iOS 17 |
 | Backend | None — the only network call is fetching historical exchange rates |
 
@@ -86,7 +90,7 @@ Settlement math and rate handling stay out of the view layer so they can be test
 10. Travel — ledgers, detail, add expense with per-expense currency and live split validation
 11. Travel — member summary with settled-up flags and per-member detail
 12. Travel — settlement (rate API, local cache, manual fallback, settled-up offsets, debt simplification)
-13. Wrap-up — unit tests, data export, README
+13. Wrap-up — Chinese/English localization, unit tests, data export, README
 
 ## Constraints
 

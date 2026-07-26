@@ -54,6 +54,7 @@
 - **本地資料庫：SwiftData**（Apple 在 iOS 17 推出的現代化本地持久化框架，取代 CoreData，寫法更簡單，完全離線可用，剛好符合旅遊記帳「無網路也要能用」的核心需求）
 - **最低支援版本：iOS 17+**（SwiftData 的最低需求；因為不上架 App Store、只給自己/朋友用，不需要顧慮支援舊機型）
 - **不需要後端伺服器**：所有資料存在裝置本機，符合離線需求；唯一的網路呼叫是旅遊記帳結算時抓取歷史匯率
+- **雙語支援（中文／英文）**：App 介面文字需同時支援繁體中文與英文，依系統語言自動切換。以 SwiftUI 的 String Catalog（`Localizable.xcstrings`）做在地化，所有使用者可見字串走 `LocalizedStringKey`／`String(localized:)`，不寫死單一語言。金額、日期沿用 `Locale.current` 格式化。預設分類名稱與圖示為資料而非介面文字，seed 時以當下語言帶入
 - **鎖定畫面小工具：WidgetKit**（iOS 16+ 支援的 Lock Screen Widget，依線框稿定案採用 `.accessoryCircular` 純數字呈現）。小工具跟主 App 是不同的 Extension Target，各自有獨立沙盒容器，要共用資料就必須設定 **App Group**（Signing & Capabilities > App Groups），並把 SwiftData 的資料庫檔案放在 App Group 的共用容器路徑下，小工具才讀得到主 App 記錄的最新可用餘額
   - 釐清：**「把小工具放上鎖定畫面」本身不需要 App Groups**，需要 App Groups 的是「小工具要顯示主 App 的資料」。純靜態或自己算得出來的小工具（例如倒數計時）不需要。本專案的小工具要顯示 SwiftData 裡的可用餘額，所以需要
   - App Groups 是 Xcode 專案設定、不需申請外部帳號，但**可能需要付費的 Apple Developer Program 才能啟用**，詳見「八、已知風險與待驗證事項」
@@ -70,7 +71,7 @@
   - **計入規則**：一筆支出「計入我的花費」，除非它是墊付且對方已歸還（`isAdvancePayment && isRepaid`）。也就是**未歸還的墊付照算入我的支出**（含可用餘額、已花費、報表、衝動購物統計），**一旦歸還就從上述所有統計排除**（錢已收回，不算我的消費）——與可用餘額口徑一致
   - **墊付管理畫面（`AdvancePaymentView`）**：從列表右上角「墊付」進入，列出所有墊付紀錄（幫誰墊付、用途、日期、金額、是否已歸還），頂部顯示「尚未收回」總額。點選某筆標記為「已歸還」→ 寫回該筆 `Expense.isRepaid = true`、`repaidDate`、關閉墊付 → 該筆不再計入我的花費 → 可用餘額回升 → 呼叫 `WidgetCenter.shared.reloadTimeline` 刷新小工具
   - **資料欄位**：在 `Expense` 加 `isAdvancePayment: Bool`、`advancePaidForName: String?`、`isRepaid: Bool`、`repaidDate: Date?`（不另開 `@Model`，因為墊付本質是「某一筆支出」的屬性）
-- **分類（用途類型）**：提供預設清單（飲食、交通、娛樂、醫療、購物、居住、學習、其他），並允許使用者新增自訂分類
+- **分類（用途類型）**：首次啟動 seed 一組預設清單（飲食、交通、娛樂、醫療、購物、居住、學習、其他），使用者可**自行增減**——透過預算設定頁進入 `CategoryManagementView` 新增自訂分類（名稱＋從精選 SF Symbol 挑一個圖示）或刪除任一分類（含預設）。刪除分類採 `.nullify`，既有支出不會被刪、只會變成未分類。以 App Group `UserDefaults` 的「已 seed」旗標避免使用者刪光預設後下次啟動又被塞回
 - **當月報表**：
   - 當月預算（使用者設定值）
   - 可用餘額 = 預算 − 全部支出（含未付款，因為未付款視為已預定要花的錢；但**已歸還的墊付不計入**）
@@ -125,7 +126,8 @@
 10. **旅遊記帳 — UI**：建立帳本、帳本詳情、新增分帳紀錄（逐筆選幣別＋均分/自訂切換＋自訂分攤加總即時驗證）
 11. **旅遊記帳 — 成員支出總覽**：`MemberSummaryView`（依成員加總分攤金額，混幣別以帳本預設幣別換算顯示，每位成員含「已付清」旗標）與 `MemberExpenseDetailView`（單一成員的明細項目）
 12. **旅遊記帳 — 結算**：串接匯率 API + 本機快取 + 手動輸入備援、逐筆各自幣別 × 當天匯率換算、已付清成員回沖、債務簡化演算法、結算結果畫面
-13. **收尾**：README、基本單元測試（至少涵蓋可用餘額計算〔含墊付計入/排除、起算日週期〕、已付清回沖、債務簡化演算法等純邏輯部分）、資料匯出功能（CSV／JSON，見第八節風險 2）、確認 `.gitignore` 沒有把使用者本機資料庫檔案或 API key 推上去
+13. **收尾**：中／英雙語在地化（`Localizable.xcstrings` String Catalog，補齊所有介面文字兩種語言）、README、基本單元測試（至少涵蓋可用餘額計算〔含墊付計入/排除、起算日週期〕、已付清回沖、債務簡化演算法等純邏輯部分）、資料匯出功能（CSV／JSON，見第八節風險 2）、確認 `.gitignore` 沒有把使用者本機資料庫檔案或 API key 推上去
+   - 註：介面字串從實作各畫面時就一律走 `LocalizedStringKey`／`String(localized:)`，收尾階段只是集中補齊 String Catalog 的兩語翻譯，避免最後回頭改寫大量硬編字串
 
 ---
 
@@ -149,6 +151,8 @@ DualTally/
 │   │   ├── Views/
 │   │   │   ├── DailyExpenseListView.swift  # 根畫面，含頂部 stat-card、報表/復盤/墊付入口、列表/日曆切換
 │   │   │   ├── ExpenseCalendarView.swift    # 日曆瀏覽模式：月曆格圓點＋選中日明細＋帶入日期新增
+│   │   │   ├── CategoryManagementView.swift # 分類管理：列出、新增（名稱＋SF Symbol）、刪除分類
+│   │   │   ├── DailyExpenseSettingsView.swift # 預算/每月起算日設定，含分類管理入口
 │   │   │   ├── AddEditExpenseView.swift
 │   │   │   ├── MonthlyReviewView.swift     # 月度復盤（逐列日期＋用途＋金額，勾選衝動購物；依起算日界定當月）
 │   │   │   ├── AdvancePaymentView.swift    # 墊付管理（列出墊付、勾選歸還 → 回補餘額並刷新小工具）
@@ -172,6 +176,7 @@ DualTally/
 │   │   └── DebtSimplifier.swift        # 債務簡化演算法（純邏輯，方便單元測試）
 │   ├── Shared/
 │   │   └── AppGroupConstants.swift     # App Group identifier、共用容器路徑、「每月起算日」共用設定的存取
+│   ├── Localizable.xcstrings           # 中／英雙語 String Catalog（介面文字在地化）
 │   └── Assets.xcassets
 ├── DualTallyWidget/                    # 鎖定畫面小工具 Extension Target
 │   ├── DualTallyWidget.swift           # WidgetBundle / Widget 定義
@@ -217,6 +222,8 @@ App 根畫面是 `TabView`，「日常記帳」與「旅遊記帳」兩個分頁
 | `DailyExpenseListView` | 根畫面 | 頂部 stat-card（預算/可用餘額/已花費，依起算日週期），下方支出列表（墊付列標「墊 ○○」），右上角「列表/日曆切換」＋「報表」「復盤」「墊付」入口，右下角＋新增 |
 | `ExpenseCalendarView` | 列表右上角〈切換鈕〉 | 月曆格瀏覽模式，有記帳的日子標圓點，點某天顯示當日小計＋明細，可「＋」帶入該日新增；與列表雙向切換，stat-card 共用固定於上方 |
 | `AddEditExpenseView` | Sheet ← 列表〈＋〉/ 日曆〈＋〉/ 點列表項目 | 金額、分類、日期（日曆進入時帶入該天）、已付款、墊付（開啟才顯示「幫誰墊付」）、備註 |
+| `DailyExpenseSettingsView` | Sheet ← 點 stat-card | 設定本週期預算、每月起算日，並提供「分類管理」入口 |
+| `CategoryManagementView` | Push ← 預算設定〈分類管理〉 | 列出分類，右上角＋新增（名稱＋SF Symbol），滑動刪除；刪除採 nullify，既有支出變未分類 |
 | `ReportView` | Push ← 列表〈報表〉 | 週/月/年 × 總支出/分類佔比/依分類，三層切換都在同一畫面內完成（已歸還墊付不計） |
 | `MonthlyReviewView` | Push ← 列表〈復盤〉 | 每列 `[核取框][日期] 用途 金額`，勾選寫回 `isImpulse`，底部統計佔比（當月依起算日界定） |
 | `AdvancePaymentView` | Push ← 列表〈墊付〉 | 頂部「尚未收回」總額，每列 `[核取框][日期] 用途·幫誰墊付 金額`，勾選＝已歸還 → 關閉墊付、回補可用餘額、刷新小工具 |
