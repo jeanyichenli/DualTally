@@ -37,6 +37,10 @@ struct DailyExpenseListView: View {
         DailyExpenseCalculator.expenses(expenses, in: cycle)
     }
 
+    private var groupedExpenses: [(day: Date, expenses: [Expense])] {
+        DailyExpenseCalculator.groupedByDay(cycleExpenses)
+    }
+
     private var summary: DailyExpenseSummary {
         let budget = budgets.first { $0.cycleStart == cycle.start }?.amount
         return DailyExpenseCalculator.summary(budget: budget, cycleExpenses: cycleExpenses)
@@ -46,7 +50,9 @@ struct DailyExpenseListView: View {
         NavigationStack(path: $routes) {
             VStack(spacing: 0) {
                 DailyStatCard(summary: summary, cycle: cycle)
-                    .padding()
+                    .padding(.horizontal)
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
                     .contentShape(Rectangle())
                     .onTapGesture { showingSettings = true }
 
@@ -57,7 +63,11 @@ struct DailyExpenseListView: View {
                     ExpenseCalendarView(expenses: expenses)
                 }
             }
-            .navigationTitle("日常記帳")
+            // No visible title — the tab bar already labels this "日常記帳", so a
+            // slim inline bar keeps the toolbar controls without spending a whole
+            // large-title row of vertical space.
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
             .navigationDestination(for: Route.self, destination: destination)
             .overlay(alignment: .bottomTrailing) {
@@ -89,17 +99,28 @@ struct DailyExpenseListView: View {
             )
         } else {
             List {
-                ForEach(cycleExpenses) { expense in
-                    Button {
-                        editingExpense = expense
-                    } label: {
-                        ExpenseRow(expense: expense)
+                ForEach(groupedExpenses, id: \.day) { group in
+                    Section {
+                        ForEach(group.expenses) { expense in
+                            Button {
+                                editingExpense = expense
+                            } label: {
+                                ExpenseRow(expense: expense)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .onDelete { offsets in
+                            delete(offsets, in: group.expenses)
+                        }
+                    } header: {
+                        DaySectionHeader(
+                            day: group.day,
+                            total: DailyExpenseCalculator.countedTotal(on: group.day, expenses: cycleExpenses)
+                        )
                     }
-                    .buttonStyle(.plain)
                 }
-                .onDelete(perform: deleteExpenses)
             }
-            .listStyle(.plain)
+            .listStyle(.insetGrouped)
         }
     }
 
@@ -154,10 +175,28 @@ struct DailyExpenseListView: View {
         .accessibilityLabel("新增支出")
     }
 
-    private func deleteExpenses(at offsets: IndexSet) {
+    private func delete(_ offsets: IndexSet, in dayExpenses: [Expense]) {
         for index in offsets {
-            modelContext.delete(cycleExpenses[index])
+            modelContext.delete(dayExpenses[index])
         }
+    }
+}
+
+/// A prominent per-day header for the sectioned expense list: the date on the
+/// left, that day's counted total on the right.
+private struct DaySectionHeader: View {
+    let day: Date
+    let total: Decimal
+
+    var body: some View {
+        HStack {
+            Text(day.formatted(.dateTime.month(.abbreviated).day().weekday()))
+            Spacer()
+            Text(total.formattedAsDailyCurrency())
+        }
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(.primary)
+        .textCase(nil)
     }
 }
 
@@ -167,29 +206,30 @@ private struct DailyStatCard: View {
     let cycle: BudgetCycle
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("可用餘額")
-                    .font(.subheadline)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Text(cycleLabel)
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
             }
             Text(summary.availableBalance.formattedAsDailyCurrency())
-                .font(.largeTitle.bold())
+                .font(.title.bold())
                 .foregroundStyle(summary.availableBalance < 0 ? .red : .primary)
             HStack {
                 labelledAmount("預算", summary.budget)
                 Spacer()
                 labelledAmount("已花費", summary.spent)
             }
-            .font(.footnote)
+            .font(.caption)
             .foregroundStyle(.secondary)
         }
-        .padding()
-        .background(RoundedRectangle(cornerRadius: 16).fill(Color(.secondarySystemBackground)))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Color(.secondarySystemBackground)))
     }
 
     private var cycleLabel: String {
@@ -212,9 +252,14 @@ struct ExpenseRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: expense.isPaid ? "circle.fill" : "circle")
-                .font(.caption2)
-                .foregroundStyle(expense.isPaid ? Color.accentColor : Color.secondary)
+            // Only unpaid expenses carry a leading marker; paid ones (the common
+            // case) start straight at the category icon, keeping the list clean.
+            if !expense.isPaid {
+                Image(systemName: "circle")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("未付款")
+            }
 
             Image(systemName: expense.category?.symbolName ?? "questionmark.circle")
                 .foregroundStyle(.secondary)
@@ -235,14 +280,13 @@ struct ExpenseRow: View {
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(expense.amount.formattedAsDailyCurrency())
-                    .strikethrough(expense.isAdvancePayment && expense.isRepaid)
-                Text(expense.date.formatted(.dateTime.month(.abbreviated).day()))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Text(expense.amount.formattedAsDailyCurrency())
+                .strikethrough(expense.isAdvancePayment && expense.isRepaid)
         }
         .padding(.vertical, 4)
+        // Make the whole row rectangle—including the blank gaps and the Spacer—
+        // tappable, so an edit tap registers anywhere on the row, not only on the
+        // text and icons.
+        .contentShape(Rectangle())
     }
 }
