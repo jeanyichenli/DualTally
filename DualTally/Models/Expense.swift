@@ -18,6 +18,10 @@ final class Expense {
     /// deleted without deleting its expenses (see `ExpenseCategory.expenses`).
     var category: ExpenseCategory?
 
+    /// How this expense was paid (現金 / 信用卡 …). Optional so a payment method
+    /// can be deleted without deleting its expenses (see `PaymentMethod.expenses`).
+    var paymentMethod: PaymentMethod?
+
     /// Whether the money has actually left the account. Unpaid expenses still
     /// count against the available balance (already-committed money).
     var isPaid: Bool
@@ -46,6 +50,7 @@ final class Expense {
         amount: Decimal,
         date: Date,
         category: ExpenseCategory?,
+        paymentMethod: PaymentMethod? = nil,
         isPaid: Bool,
         note: String? = nil,
         isAdvancePayment: Bool = false,
@@ -54,6 +59,7 @@ final class Expense {
         self.amount = amount
         self.date = date
         self.category = category
+        self.paymentMethod = paymentMethod
         self.isPaid = isPaid
         self.note = note
         self.isImpulse = false

@@ -68,6 +68,11 @@ struct DailyExpenseSettingsView: View {
                     } label: {
                         Label("分類管理", systemImage: "tag")
                     }
+                    NavigationLink {
+                        PaymentMethodManagementView()
+                    } label: {
+                        Label("支付方式", systemImage: "creditcard")
+                    }
                 }
             }
             .navigationTitle("預算設定")

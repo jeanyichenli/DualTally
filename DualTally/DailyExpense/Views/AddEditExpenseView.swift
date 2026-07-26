@@ -15,12 +15,14 @@ struct AddEditExpenseView: View {
     @Environment(\.dismiss) private var dismiss
 
     @Query(sort: \ExpenseCategory.sortOrder) private var categories: [ExpenseCategory]
+    @Query(sort: \PaymentMethod.sortOrder) private var paymentMethods: [PaymentMethod]
 
     /// The expense being edited, or nil when adding a new one.
     private let expenseToEdit: Expense?
 
     @State private var amountText: String
     @State private var selectedCategory: ExpenseCategory?
+    @State private var selectedPaymentMethod: PaymentMethod?
     @State private var date: Date
     @State private var isPaid: Bool
     @State private var isAdvancePayment: Bool
@@ -35,6 +37,7 @@ struct AddEditExpenseView: View {
         self.expenseToEdit = expense
         _amountText = State(initialValue: expense.map { NSDecimalNumber(decimal: $0.amount).stringValue } ?? "")
         _selectedCategory = State(initialValue: expense?.category)
+        _selectedPaymentMethod = State(initialValue: expense?.paymentMethod)
         _date = State(initialValue: expense?.date ?? initialDate)
         _isPaid = State(initialValue: expense?.isPaid ?? true)
         _isAdvancePayment = State(initialValue: expense?.isAdvancePayment ?? false)
@@ -66,6 +69,12 @@ struct AddEditExpenseView: View {
                         ForEach(categories) { category in
                             Label(category.name, systemImage: category.symbolName)
                                 .tag(Optional(category))
+                        }
+                    }
+                    Picker("支付方式", selection: $selectedPaymentMethod) {
+                        ForEach(paymentMethods) { method in
+                            Label(method.name, systemImage: method.symbolName)
+                                .tag(Optional(method))
                         }
                     }
                     DatePicker("日期", selection: $date, displayedComponents: .date)
@@ -102,6 +111,9 @@ struct AddEditExpenseView: View {
                 if selectedCategory == nil {
                     selectedCategory = categories.first
                 }
+                if selectedPaymentMethod == nil {
+                    selectedPaymentMethod = paymentMethods.first
+                }
             }
         }
     }
@@ -114,6 +126,7 @@ struct AddEditExpenseView: View {
         if let expense = expenseToEdit {
             expense.amount = amount
             expense.category = category
+            expense.paymentMethod = selectedPaymentMethod
             expense.date = date
             expense.isPaid = isPaid
             expense.isAdvancePayment = isAdvancePayment
@@ -129,6 +142,7 @@ struct AddEditExpenseView: View {
                 amount: amount,
                 date: date,
                 category: category,
+                paymentMethod: selectedPaymentMethod,
                 isPaid: isPaid,
                 note: trimmedNote.isEmpty ? nil : trimmedNote,
                 isAdvancePayment: isAdvancePayment,
