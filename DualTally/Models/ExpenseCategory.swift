@@ -49,11 +49,26 @@ extension ExpenseCategory {
         ("其他", "ellipsis.circle.fill"),
     ]
 
-    /// Inserts the default categories into the context if none exist yet.
+    /// SF Symbols offered when the user creates or edits a category.
+    static let symbolChoices: [String] = [
+        "fork.knife", "car.fill", "gamecontroller.fill", "cross.case.fill",
+        "bag.fill", "house.fill", "book.fill", "cup.and.saucer.fill",
+        "tram.fill", "airplane", "gift.fill", "pawprint.fill",
+        "creditcard.fill", "wrench.and.screwdriver.fill", "heart.fill",
+        "tshirt.fill", "cart.fill", "phone.fill", "bolt.fill",
+        "ellipsis.circle.fill",
+    ]
+
+    private static let didSeedDefaultsKey = "didSeedDefaultCategories"
+
+    /// Inserts the default categories once, on first launch only. Guarded by a
+    /// persisted flag so that a user who deletes every default is not given them
+    /// back on the next launch.
     static func seedDefaultsIfNeeded(in context: ModelContext) {
-        let existing = try? context.fetchCount(FetchDescriptor<ExpenseCategory>())
-        guard (existing ?? 0) == 0 else { return }
-        for (index, entry) in defaults.enumerated() {
+        let defaults = AppGroupConstants.sharedDefaults ?? .standard
+        guard !defaults.bool(forKey: didSeedDefaultsKey) else { return }
+
+        for (index, entry) in Self.defaults.enumerated() {
             context.insert(
                 ExpenseCategory(
                     name: entry.name,
@@ -63,5 +78,12 @@ extension ExpenseCategory {
                 )
             )
         }
+        defaults.set(true, forKey: didSeedDefaultsKey)
+    }
+
+    /// The next sort order to assign a user-created category, placing it after
+    /// all existing ones.
+    static func nextSortOrder(after categories: [ExpenseCategory]) -> Int {
+        (categories.map(\.sortOrder).max() ?? -1) + 1
     }
 }

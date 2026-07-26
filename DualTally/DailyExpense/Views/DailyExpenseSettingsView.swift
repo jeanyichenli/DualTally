@@ -61,6 +61,14 @@ struct DailyExpenseSettingsView: View {
                 } footer: {
                     Text("一個「月」從這天開始，可設 1–28 號以對齊薪水日等週期。")
                 }
+
+                Section {
+                    NavigationLink {
+                        CategoryManagementView()
+                    } label: {
+                        Label("分類管理", systemImage: "tag")
+                    }
+                }
             }
             .navigationTitle("預算設定")
             .navigationBarTitleDisplayMode(.inline)
