@@ -8,7 +8,6 @@
 
 import SwiftUI
 import SwiftData
-import WidgetKit
 
 struct AddEditExpenseView: View {
     @Environment(\.modelContext) private var modelContext
@@ -151,7 +150,7 @@ struct AddEditExpenseView: View {
             modelContext.insert(expense)
         }
 
-        WidgetCenter.shared.reloadAllTimelines()
+        DailyBalanceSnapshot.refresh(using: modelContext)
         dismiss()
     }
 }

@@ -32,6 +32,8 @@ struct DualTallyApp: App {
         }
         ExpenseCategory.seedDefaultsIfNeeded(in: modelContainer.mainContext)
         PaymentMethod.seedDefaultsIfNeeded(in: modelContainer.mainContext)
+        // Publish the initial balance so the widget has data before the first edit.
+        DailyBalanceSnapshot.refresh(using: modelContainer.mainContext)
     }
 
     var body: some Scene {

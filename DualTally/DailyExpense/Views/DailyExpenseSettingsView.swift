@@ -9,7 +9,6 @@
 
 import SwiftUI
 import SwiftData
-import WidgetKit
 
 struct DailyExpenseSettingsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -115,7 +114,7 @@ struct DailyExpenseSettingsView: View {
             modelContext.insert(MonthlyBudget(cycleStart: cycle.start, amount: amount))
         }
 
-        WidgetCenter.shared.reloadAllTimelines()
+        DailyBalanceSnapshot.refresh(using: modelContext)
         dismiss()
     }
 }

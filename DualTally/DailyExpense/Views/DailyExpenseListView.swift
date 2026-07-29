@@ -179,6 +179,7 @@ struct DailyExpenseListView: View {
         for index in offsets {
             modelContext.delete(dayExpenses[index])
         }
+        DailyBalanceSnapshot.refresh(using: modelContext)
     }
 }
 

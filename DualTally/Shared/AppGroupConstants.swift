@@ -20,6 +20,16 @@ enum AppGroupConstants {
     /// Shared `UserDefaults` suite backed by the App Group container.
     static let sharedDefaults = UserDefaults(suiteName: identifier)
 
+    /// Keys for the small derived balance snapshot the app writes to the shared
+    /// defaults for the Lock Screen widget to read. The widget re-declares
+    /// matching literals (it does not compile the app's sources), so keep the two
+    /// in sync if these ever change.
+    enum WidgetSnapshotKey {
+        static let balanceText = "widget.balanceText"
+        static let availableBalance = "widget.availableBalance"
+        static let cycleLabel = "widget.cycleLabel"
+    }
+
     /// URL of the SwiftData store inside the App Group's shared container.
     /// Falls back to a temporary location if the container is unavailable, which
     /// should only happen when the App Group entitlement is misconfigured.

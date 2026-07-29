@@ -15,7 +15,6 @@
 
 import SwiftUI
 import SwiftData
-import WidgetKit
 
 struct AdvancePaymentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -139,13 +138,13 @@ struct AdvancePaymentView: View {
     private func toggleRepaid(_ advance: Expense) {
         advance.isRepaid.toggle()
         advance.repaidDate = advance.isRepaid ? Date() : nil
-        WidgetCenter.shared.reloadAllTimelines()
+        DailyBalanceSnapshot.refresh(using: modelContext)
     }
 
     private func markOutstanding(_ advance: Expense) {
         advance.isRepaid = false
         advance.repaidDate = nil
-        WidgetCenter.shared.reloadAllTimelines()
+        DailyBalanceSnapshot.refresh(using: modelContext)
         reload()
     }
 }
