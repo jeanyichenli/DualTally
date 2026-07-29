@@ -23,6 +23,23 @@ struct DailyExpenseSummary: Equatable {
     let spent: Decimal
 }
 
+/// The impulse-spending breakdown for one cycle, shown at the top of the
+/// monthly review screen.
+struct ImpulseReviewSummary: Equatable {
+    /// Total counted spending in the cycle (repaid advances excluded).
+    let totalSpending: Decimal
+
+    /// The portion flagged as impulse purchases.
+    let impulseTotal: Decimal
+
+    /// How many expenses are flagged as impulse.
+    let impulseCount: Int
+
+    /// Impulse spending as a fraction of total spending, `0...1`. Zero when
+    /// there is no spending yet.
+    let impulseShare: Double
+}
+
 enum DailyExpenseCalculator {
     /// Keeps only the expenses whose date falls in the cycle.
     static func expenses(_ expenses: [Expense], in cycle: BudgetCycle) -> [Expense] {
@@ -65,6 +82,24 @@ enum DailyExpenseCalculator {
         Dictionary(grouping: expenses) { calendar.startOfDay(for: $0.date) }
             .map { (day: $0.key, expenses: $0.value) }
             .sorted { $0.day > $1.day }
+    }
+
+    /// Summarizes impulse spending for a cycle. Only counted expenses take part,
+    /// so a repaid advance never inflates either the total or the impulse share.
+    static func impulseReviewSummary(_ cycleExpenses: [Expense]) -> ImpulseReviewSummary {
+        let counted = cycleExpenses.filter(\.countsAsSpending)
+        let total = counted.reduce(Decimal.zero) { $0 + $1.amount }
+        let impulse = counted.filter(\.isImpulse)
+        let impulseTotal = impulse.reduce(Decimal.zero) { $0 + $1.amount }
+        let share = total > 0
+            ? NSDecimalNumber(decimal: impulseTotal).doubleValue / NSDecimalNumber(decimal: total).doubleValue
+            : 0
+        return ImpulseReviewSummary(
+            totalSpending: total,
+            impulseTotal: impulseTotal,
+            impulseCount: impulse.count,
+            impulseShare: share
+        )
     }
 
     /// The outstanding advances (fronted, not yet repaid), newest first. Drives

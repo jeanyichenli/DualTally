@@ -2,24 +2,12 @@
 //  DailyPlaceholderViews.swift
 //  DualTally
 //
-//  Navigation placeholders for daily-expense screens implemented in later
-//  roadmap steps (6 monthly review, 7 reports). They exist so the list view's
-//  entry points are wired now; each is replaced when its step lands.
+//  Navigation placeholder for the reports screen implemented in roadmap step 7.
+//  It exists so the list view's entry point is wired now, and is replaced when
+//  that step lands.
 //
 
 import SwiftUI
-
-struct MonthlyReviewView: View {
-    var body: some View {
-        ContentUnavailableView(
-            "月度復盤",
-            systemImage: "checklist",
-            description: Text("逐筆勾選衝動購物並統計佔比（roadmap 步驟 6）")
-        )
-        .navigationTitle("復盤")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
 
 struct ReportView: View {
     var body: some View {
