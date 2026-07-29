@@ -20,6 +20,11 @@ struct ReportView: View {
     @State private var mode: ReportMode = .total
     @State private var selectedCategoryName: String?
 
+    /// The bucket the user tapped on the chart, if any. Used to reveal that
+    /// bucket's value on demand instead of cluttering every bar with a label —
+    /// which would not fit a dense month view or a stacked bar.
+    @State private var selectedBucketDate: Date?
+
     private var dataPoints: [ReportDataPoint] {
         ReportCalculator.dataPoints(
             expenses: expenses,
@@ -97,8 +102,21 @@ struct ReportView: View {
                     y: .value("金額", point.amountValue)
                 )
                 .foregroundStyle(by: .value("分類", point.categoryName))
+
+                if let selection, selection.date == point.bucketDate {
+                    RuleMark(x: .value("期間", selection.date, unit: range.bucketComponent))
+                        .foregroundStyle(Color.secondary.opacity(0.3))
+                        .annotation(
+                            position: .top,
+                            spacing: 0,
+                            overflowResolution: .init(x: .fit(to: .chart), y: .disabled)
+                        ) {
+                            selectionCallout(selection)
+                        }
+                }
             }
             .chartLegend(mode == .byCategory ? .visible : .hidden)
+            .chartXSelection(value: $selectedBucketDate)
             .chartXAxis {
                 AxisMarks(values: .stride(by: axisStrideComponent, count: axisStrideCount)) {
                     AxisGridLine()
@@ -106,7 +124,43 @@ struct ReportView: View {
                     AxisValueLabel(format: axisLabelFormat)
                 }
             }
+            .onChange(of: range) { selectedBucketDate = nil }
+            .onChange(of: mode) { selectedBucketDate = nil }
         }
+    }
+
+    /// The little value label shown above the tapped bar: the period and its
+    /// total (the sum of every category segment in that bucket).
+    private func selectionCallout(_ selection: (date: Date, total: Decimal)) -> some View {
+        VStack(spacing: 2) {
+            Text(selection.date.formatted(axisLabelFormat))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(selection.total.formattedAsDailyCurrency())
+                .font(.caption.bold())
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color(.secondarySystemBackground)))
+    }
+
+    /// The tapped bucket resolved to the nearest bar that has data, with that
+    /// bucket's total across all its category segments.
+    private var selection: (date: Date, total: Decimal)? {
+        guard let selectedBucketDate, let bucket = nearestBucket(to: selectedBucketDate) else {
+            return nil
+        }
+        let total = dataPoints
+            .filter { $0.bucketDate == bucket }
+            .reduce(Decimal.zero) { $0 + $1.amount }
+        return (bucket, total)
+    }
+
+    /// Snaps a raw selection date to the closest bucket that actually has bars.
+    private func nearestBucket(to date: Date) -> Date? {
+        dataPoints
+            .map(\.bucketDate)
+            .min { abs($0.timeIntervalSince(date)) < abs($1.timeIntervalSince(date)) }
     }
 
     /// Binding that keeps the segmented single-category picker in sync with the
