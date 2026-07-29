@@ -129,6 +129,7 @@
 11. **旅遊記帳 — 成員支出總覽**：`MemberSummaryView`（依成員加總分攤金額，混幣別以帳本預設幣別換算顯示，每位成員含「已付清」旗標）與 `MemberExpenseDetailView`（單一成員的明細項目）
 12. **旅遊記帳 — 結算**：串接匯率 API + 本機快取 + 手動輸入備援、逐筆各自幣別 × 當天匯率換算、已付清成員回沖、債務簡化演算法、結算結果畫面
 13. **收尾**：中／英雙語在地化（`Localizable.xcstrings` String Catalog，補齊所有介面文字兩種語言）、README、基本單元測試（至少涵蓋可用餘額計算〔含墊付計入/排除、起算日週期〕、已付清回沖、債務簡化演算法等純邏輯部分）、資料匯出功能（CSV／JSON，見第八節風險 2）、確認 `.gitignore` 沒有把使用者本機資料庫檔案或 API key 推上去
+    - 進度：日常記帳計算層的單元測試已於步驟 3–7 期間提前建立並通過（見第七節）；此步驟剩雙語在地化、旅遊側純邏輯測試、資料匯出與收尾檢查。
    - 註：介面字串從實作各畫面時就一律走 `LocalizedStringKey`／`String(localized:)`，收尾階段只是集中補齊 String Catalog 的兩語翻譯，避免最後回頭改寫大量硬編字串
 
 ---
@@ -186,7 +187,7 @@ DualTally/
 │   ├── DualTallyWidget.swift           # WidgetBundle / Widget 定義
 │   ├── DailyBalanceProvider.swift      # TimelineProvider，讀 App Group 共用的 SwiftData
 │   └── DailyBalanceWidgetView.swift    # .accessoryInline / .accessoryCircular 畫面
-├── DualTallyTests/                     # 單元測試（可用餘額計算、DebtSimplifier）
+├── DualTallyTests/                     # 單元測試（已含 BudgetCycle/DailyExpense/Report 計算層；DebtSimplifier 待補）
 │   ├── DebtSimplifierTests.swift
 │   └── BalanceCalculationTests.swift
 ├── .gitignore                          # GitHub 官方 Swift/Xcode 範本
@@ -253,6 +254,8 @@ App 根畫面是 `TabView`，「日常記帳」與「旅遊記帳」兩個分頁
 
 - 每個階段完成後在 Xcode Simulator 跑起來手動測試對應功能
 - 債務簡化演算法、可用餘額計算、報表分組加總（週/月/年、依分類）、成員分攤總金額計算等純邏輯建議寫 Swift Testing / XCTest 單元測試，用具體數字案例驗證（例如三人均分、多人不均分、含負數/四捨五入邊界）
+  - **已提前落地（日常記帳計算層）**：`DualTallyTests` target 已建立（hosted unit-test、Swift Testing），涵蓋 `BudgetCycleCalculator`（起算日邊界／含括語意／clamp）、`DailyExpenseCalculator`（可用餘額 vs 已花費、墊付計入/排除、依人分組、衝動佔比、逐日）、`ReportCalculator`（視窗邊界、各範圍分桶、三種模式、已歸還墊付排除），共 27 個案例全數通過。旅遊側 `DebtSimplifier`／成員分攤與匯率邏輯仍留待步驟 13 補齊。
+  - 執行：`xcodebuild test -scheme DualTally -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5'`
 - 旅遊記帳的匯率快取與離線手動輸入，建議在 Simulator 上關閉網路（或用 Xcode 的 Network Link Conditioner）實際測試離線流程是否真的能繼續記帳與結算
 - 鎖定畫面小工具：實機加入鎖定畫面測試（Simulator 對 Lock Screen Widget 的預覽有限，建議用實機鎖屏長按加入小工具確認），並實際新增一筆支出後回鎖定畫面確認數字有即時更新
 

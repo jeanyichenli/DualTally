@@ -93,6 +93,7 @@ Settlement math and rate handling stay out of the view layer so they can be test
 11. Travel — member summary with settled-up flags and per-member detail
 12. Travel — settlement (rate API, local cache, manual fallback, settled-up offsets, debt simplification)
 13. Wrap-up — Chinese/English localization, unit tests, data export, README
+    - Unit tests for the daily-expense calculation layer (budget cycle, balance/spending, advances, impulse, reports) already landed early during steps 3–7; the travel-side logic (DebtSimplifier, member split) remains for this step
 
 ## Constraints
 
