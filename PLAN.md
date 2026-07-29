@@ -55,7 +55,8 @@
 - **最低支援版本：iOS 17+**（SwiftData 的最低需求；因為不上架 App Store、只給自己/朋友用，不需要顧慮支援舊機型）
 - **不需要後端伺服器**：所有資料存在裝置本機，符合離線需求；唯一的網路呼叫是旅遊記帳結算時抓取歷史匯率
 - **雙語支援（中文／英文）**：App 介面文字需同時支援繁體中文與英文，依系統語言自動切換。以 SwiftUI 的 String Catalog（`Localizable.xcstrings`）做在地化，所有使用者可見字串走 `LocalizedStringKey`／`String(localized:)`，不寫死單一語言。金額、日期沿用 `Locale.current` 格式化。預設分類名稱與圖示為資料而非介面文字，seed 時以當下語言帶入
-- **鎖定畫面小工具：WidgetKit**（iOS 16+ 支援的 Lock Screen Widget，依線框稿定案採用 `.accessoryCircular` 純數字呈現）。小工具跟主 App 是不同的 Extension Target，各自有獨立沙盒容器，要共用資料就必須設定 **App Group**（Signing & Capabilities > App Groups），並把 SwiftData 的資料庫檔案放在 App Group 的共用容器路徑下，小工具才讀得到主 App 記錄的最新可用餘額
+- **鎖定畫面小工具：WidgetKit**（iOS 16+ 支援的 Lock Screen Widget，支援 `.accessoryInline`／`.accessoryCircular`／`.accessoryRectangular` 純數字呈現）。小工具跟主 App 是不同的 Extension Target，各自有獨立沙盒容器，要共用資料就必須設定 **App Group**（Signing & Capabilities > App Groups）。
+  - **實作定案（本輪）**：小工具**不直接讀 SwiftData**，改由主 App 在每次資料變動後把「算好的可用餘額字串＋數值＋週期標籤」寫進 App Group 的共用 `UserDefaults`（`DailyBalanceSnapshot`），小工具只讀這份衍生快照。理由：小工具只需要一個數字，這樣最單純穩定、Extension 不必編譯整個 SwiftData 模型層，也避開讓兩個 target 共用 model 原始碼的專案設定複雜度。仍是透過 App Group 共享，符合離線設計。SwiftData 資料庫本身仍放在 App Group 共用容器，未來要讓小工具直接讀資料庫也保留彈性。
   - 釐清：**「把小工具放上鎖定畫面」本身不需要 App Groups**，需要 App Groups 的是「小工具要顯示主 App 的資料」。純靜態或自己算得出來的小工具（例如倒數計時）不需要。本專案的小工具要顯示 SwiftData 裡的可用餘額，所以需要
   - App Groups 是 Xcode 專案設定、不需申請外部帳號，但**可能需要付費的 Apple Developer Program 才能啟用**，詳見「八、已知風險與待驗證事項」
 
@@ -123,7 +124,7 @@
 5. **日常記帳 — 墊付管理**：`AdvancePaymentView`，列出未歸還/已歸還墊付與「尚未收回」總額，勾選歸還 → 關閉墊付、回補可用餘額、`WidgetCenter.shared.reloadTimeline` 刷新小工具
 6. **日常記帳 — 復盤功能**：支出清單逐列（日期＋用途＋金額）勾選衝動購物、復盤統計畫面（當月範圍依「每月起算日」界定）
 7. **日常記帳 — 報表畫面**：`ReportView`，週/月/年 × 總支出/分類佔比/依分類三種檢視，Swift Charts `BarMark` 實作（「月」粒度依起算日週期；已歸還墊付不計入）
-8. **日常記帳 — 鎖定畫面小工具**：新增 Widget Extension Target、設定 App Group 共用 SwiftData 容器、實作 Timeline Provider 顯示可用餘額數字（依起算日週期計算）、確認主 App 資料變動後小工具會刷新（App Groups 已驗證可用，見第八節）
+8. **日常記帳 — 鎖定畫面小工具** ✅：新增 Widget Extension Target（`DualTallyWidget`）、設定 App Group、實作 `TimelineProvider` 顯示可用餘額數字（`.accessoryInline`／`.accessoryCircular`／`.accessoryRectangular`）。**採快照方案**：主 App 以 `DailyBalanceSnapshot` 在每次新增/編輯/刪除支出、改預算/起算日、勾選墊付歸還後，把算好的可用餘額寫進 App Group 共用 `UserDefaults` 並 `reloadAllTimelines`，小工具只讀這份衍生值（不編譯 SwiftData）。實機驗證：免費 Personal Team 可簽署 widget extension 且 App Group entitlement 正常（見第八節）
 9. **旅遊記帳 — 資料模型**：`TravelLedger`（含預設幣別）、`Member`（含 `isSettled` 已付清旗標）、`TravelExpense`（含逐筆 `currency`）、`ExpenseSplit`、`ExchangeRateCache`
 10. **旅遊記帳 — UI**：建立帳本、帳本詳情、新增分帳紀錄（逐筆選幣別＋均分/自訂切換＋自訂分攤加總即時驗證）
 11. **旅遊記帳 — 成員支出總覽**：`MemberSummaryView`（依成員加總分攤金額，混幣別以帳本預設幣別換算顯示，每位成員含「已付清」旗標）與 `MemberExpenseDetailView`（單一成員的明細項目）
@@ -177,6 +178,7 @@ DualTally/
 │   │   └── ViewModels/
 │   │       └── TravelLedgerViewModel.swift
 │   ├── Services/
+│   │   ├── DailyBalanceSnapshot.swift  # 算好可用餘額寫入 App Group 共用設定並刷新小工具
 │   │   ├── ExchangeRateService.swift   # 匯率 API 串接 + 快取讀寫
 │   │   └── DebtSimplifier.swift        # 債務簡化演算法（純邏輯，方便單元測試）
 │   ├── Shared/
@@ -184,9 +186,9 @@ DualTally/
 │   ├── Localizable.xcstrings           # 中／英雙語 String Catalog（介面文字在地化）
 │   └── Assets.xcassets
 ├── DualTallyWidget/                    # 鎖定畫面小工具 Extension Target
-│   ├── DualTallyWidget.swift           # WidgetBundle / Widget 定義
-│   ├── DailyBalanceProvider.swift      # TimelineProvider，讀 App Group 共用的 SwiftData
-│   └── DailyBalanceWidgetView.swift    # .accessoryInline / .accessoryCircular 畫面
+│   ├── DualTallyWidget.swift           # WidgetBundle / Widget / TimelineProvider / 三種 accessory 畫面（讀 App Group 共用 UserDefaults 的餘額快照）
+│   ├── Info.plist                      # NSExtension → widgetkit-extension
+│   └── DualTallyWidget.entitlements    # App Group
 ├── DualTallyTests/                     # 單元測試（已含 BudgetCycle/DailyExpense/Report 計算層；DebtSimplifier 待補）
 │   ├── DebtSimplifierTests.swift
 │   └── BalanceCalculationTests.swift

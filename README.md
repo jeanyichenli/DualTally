@@ -27,7 +27,7 @@ The interface is **bilingual (Traditional Chinese / English)** and follows the d
 - **Custom categories**: ships with sensible defaults (food, transport, etc.) that you can add to or delete from a category-management screen — deleting one leaves its past expenses intact (they become uncategorized)
 - **Payment method**: a second, independent axis (cash / credit card …) recorded per expense, defaulting to cash and credit card and editable on its own management screen the same way categories are — distinct from paid/unpaid, which is about whether the money has left your account
 - **No income tracking, by design**: the two cases where you'd log money coming in are already covered — a budget top-up is just the monthly budget, and an advance being paid back is handled by marking it repaid — so the app keeps the single invariant *available balance = budget − expenses* rather than adding a parallel income concept
-- **Lock Screen widget**: one number, the current month's available balance
+- **Lock Screen widget**: one number, the current cycle's available balance. The app publishes the computed balance into a shared App Group after every change and the widget reads that snapshot, so the extension stays tiny and never touches the database directly
 
 ### Travel bill splitting
 
@@ -51,7 +51,7 @@ The wireframes exist to confirm information architecture and screen transitions,
 | UI | SwiftUI |
 | Persistence | SwiftData, fully local |
 | Charts | Swift Charts |
-| Widget | WidgetKit (`.accessoryCircular`) |
+| Widget | WidgetKit (Lock Screen accessory families) |
 | Localization | String Catalog — Traditional Chinese + English |
 | Minimum target | iOS 17 |
 | Backend | None — the only network call is fetching historical exchange rates |
@@ -87,7 +87,7 @@ Settlement math and rate handling stay out of the view layer so they can be test
 5. Daily expense — advance-payment tracking screen
 6. Daily expense — monthly impulse review
 7. Daily expense — reports
-8. Daily expense — Lock Screen widget
+8. Daily expense — Lock Screen widget ✅
 9. Travel — data models (per-expense currency, member settled-up flag)
 10. Travel — ledgers, detail, add expense with per-expense currency and live split validation
 11. Travel — member summary with settled-up flags and per-member detail
@@ -99,7 +99,7 @@ Settlement math and rate handling stay out of the view layer so they can be test
 
 **Apps signed with a free Apple ID expire after 7 days** and need a reinstall from Xcode. Data survives a reinstall, but not deleting the app, so a CSV/JSON export lands in step 12 as a backup path.
 
-Sharing the SwiftData store with the widget extension needs an App Group. This was verified to work under free "Personal Team" signing — the entitlement is present in a codesigned device build — so no paid membership is required for anything in this project.
+Sharing data with the widget extension needs an App Group. This is confirmed to work under free "Personal Team" signing: a device build signs both the app and the widget extension, each with its own provisioning profile and the App Group entitlement present — so no paid membership is required for anything in this project.
 
 ## Documentation
 
