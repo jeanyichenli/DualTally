@@ -3,24 +3,11 @@
 //  DualTally
 //
 //  Navigation placeholders for daily-expense screens implemented in later
-//  roadmap steps (5 advance management, 6 monthly review, 7 reports). They exist
-//  so the list view's entry points are wired now; each is replaced when its step
-//  lands.
+//  roadmap steps (6 monthly review, 7 reports). They exist so the list view's
+//  entry points are wired now; each is replaced when its step lands.
 //
 
 import SwiftUI
-
-struct AdvancePaymentView: View {
-    var body: some View {
-        ContentUnavailableView(
-            "墊付管理",
-            systemImage: "hand.raised.fill",
-            description: Text("列出墊付紀錄與尚未收回總額（roadmap 步驟 5）")
-        )
-        .navigationTitle("墊付")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
 
 struct MonthlyReviewView: View {
     var body: some View {

@@ -67,6 +67,42 @@ enum DailyExpenseCalculator {
             .sorted { $0.day > $1.day }
     }
 
+    /// The outstanding advances (fronted, not yet repaid), newest first. Drives
+    /// the advance-tracking screen's "待收回" section.
+    static func outstandingAdvances(_ expenses: [Expense]) -> [Expense] {
+        expenses
+            .filter(\.isOutstandingAdvance)
+            .sorted { $0.date > $1.date }
+    }
+
+    /// The advances already paid back, newest-repaid first. Drives the
+    /// advance-tracking screen's "已收回" history section.
+    static func repaidAdvances(_ expenses: [Expense]) -> [Expense] {
+        expenses
+            .filter { $0.isAdvancePayment && $0.isRepaid }
+            .sorted { ($0.repaidDate ?? $0.date) > ($1.repaidDate ?? $1.date) }
+    }
+
+    /// Total amount still owed back across every outstanding advance.
+    static func outstandingAdvanceTotal(_ expenses: [Expense]) -> Decimal {
+        outstandingAdvances(expenses).reduce(Decimal.zero) { $0 + $1.amount }
+    }
+
+    /// Groups outstanding advances by the person they were fronted for, ordered
+    /// by who owes the most. Within a person, the advances stay newest-first.
+    /// Unnamed advances collapse under a single empty-name bucket.
+    static func outstandingAdvancesByPerson(
+        _ expenses: [Expense]
+    ) -> [(name: String, expenses: [Expense])] {
+        Dictionary(grouping: outstandingAdvances(expenses)) { $0.advancePaidForName ?? "" }
+            .map { (name: $0.key, expenses: $0.value) }
+            .sorted { lhs, rhs in
+                let lhsTotal = lhs.expenses.reduce(Decimal.zero) { $0 + $1.amount }
+                let rhsTotal = rhs.expenses.reduce(Decimal.zero) { $0 + $1.amount }
+                return lhsTotal > rhsTotal
+            }
+    }
+
     /// The set of calendar days (start-of-day) that have at least one expense,
     /// used to place dots on the calendar grid. Presence ignores the
     /// counts-as-spending rule so a repaid advance still leaves a visible mark
