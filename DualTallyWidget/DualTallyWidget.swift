@@ -97,6 +97,16 @@ struct DualTallyWidgetEntryView: View {
     let entry: DailyBalanceEntry
 
     var body: some View {
+        // iOS 17+ requires every widget to declare a container background, even
+        // Lock Screen accessory widgets (which render it as clear). Without it
+        // WidgetKit refuses to draw the content and shows the "Please adopt
+        // containerBackground API" placeholder instead of the balance.
+        content
+            .containerBackground(for: .widget) { Color.clear }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         switch family {
         case .accessoryInline:
             Text("餘 \(entry.balanceText)")
@@ -117,18 +127,24 @@ struct DualTallyWidgetEntryView: View {
             }
 
         default: // .accessoryRectangular
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text("可用餘額")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
                 Text(entry.balanceText)
-                    .font(.title3.bold())
+                    .font(.headline)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
                 if !entry.cycleLabel.isEmpty {
                     Text(entry.cycleLabel)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .minimumScaleFactor(0.8)
+                        .lineLimit(1)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
