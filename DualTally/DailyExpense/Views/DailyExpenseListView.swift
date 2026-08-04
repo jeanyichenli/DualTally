@@ -15,7 +15,7 @@ struct DailyExpenseListView: View {
     }
 
     private enum Route: Hashable {
-        case report, review, advance
+        case report, review, advance, categories, paymentMethods
     }
 
     @Environment(\.modelContext) private var modelContext
@@ -28,9 +28,19 @@ struct DailyExpenseListView: View {
     @State private var showingSettings = false
     @State private var showingAddExpense = false
     @State private var editingExpense: Expense?
+    // Cycles away from the current one; list mode can browse to a neighbor to
+    // review its budget and expenses. The widget always shows the current
+    // cycle regardless of this — see DailyBalanceSnapshot.
+    @State private var cycleOffset = 0
 
     private var cycle: BudgetCycle {
-        BudgetCycleCalculator.currentCycle()
+        let current = BudgetCycleCalculator.currentCycle()
+        guard cycleOffset != 0,
+              let shiftedStart = Calendar.current.date(byAdding: .month, value: cycleOffset, to: current.start)
+        else {
+            return current
+        }
+        return BudgetCycleCalculator.cycle(containing: shiftedStart, startDay: MonthStartDaySetting.current)
     }
 
     private var cycleExpenses: [Expense] {
@@ -55,6 +65,10 @@ struct DailyExpenseListView: View {
                     .padding(.bottom, 8)
                     .contentShape(Rectangle())
                     .onTapGesture { showingSettings = true }
+
+                if browseMode == .list {
+                    cycleNavigator
+                }
 
                 switch browseMode {
                 case .list:
@@ -84,9 +98,49 @@ struct DailyExpenseListView: View {
                 AddEditExpenseView(expense: expense)
             }
             .sheet(isPresented: $showingSettings) {
-                DailyExpenseSettingsView()
+                DailyExpenseSettingsView(referenceDate: cycle.start)
             }
         }
+    }
+
+    /// Lets list mode browse the budget and expenses of a neighboring cycle,
+    /// independent from the widget's snapshot which always shows the current one.
+    private var cycleNavigator: some View {
+        HStack {
+            cycleStepButton(systemName: "chevron.left", delta: -1, label: "上一期")
+
+            Spacer()
+
+            if cycleOffset != 0 {
+                Button("回到本期") { cycleOffset = 0 }
+                    .font(.caption)
+            }
+
+            Spacer()
+
+            cycleStepButton(systemName: "chevron.right", delta: 1, label: "下一期")
+        }
+        .padding(.horizontal, 12)
+        // A clear gap from the stat-card above so an imprecise tap near the
+        // chevrons can't bleed onto the card's tap-to-open-settings gesture.
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
+
+    /// A chevron with a generous padded hit area — matching the calendar's own
+    /// month-step buttons — so it's easy to hit deliberately instead of
+    /// accidentally landing on the stat-card above it.
+    private func cycleStepButton(systemName: String, delta: Int, label: String) -> some View {
+        Button {
+            cycleOffset += delta
+        } label: {
+            Image(systemName: systemName)
+                .font(.headline)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel(label)
     }
 
     @ViewBuilder
@@ -108,9 +162,10 @@ struct DailyExpenseListView: View {
                                 ExpenseRow(expense: expense)
                             }
                             .buttonStyle(.plain)
-                        }
-                        .onDelete { offsets in
-                            delete(offsets, in: group.expenses)
+                            .expenseRowActions(
+                                onEdit: { editingExpense = expense },
+                                onDelete: { delete(expense) }
+                            )
                         }
                     } header: {
                         DaySectionHeader(
@@ -145,6 +200,16 @@ struct DailyExpenseListView: View {
                 Button { routes.append(.advance) } label: {
                     Label("墊付", systemImage: "hand.raised.fill")
                 }
+                Menu {
+                    Button { routes.append(.categories) } label: {
+                        Label("分類管理", systemImage: "tag")
+                    }
+                    Button { routes.append(.paymentMethods) } label: {
+                        Label("支付方式", systemImage: "creditcard")
+                    }
+                } label: {
+                    Label("設定", systemImage: "gearshape.fill")
+                }
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
@@ -157,6 +222,8 @@ struct DailyExpenseListView: View {
         case .report: ReportView()
         case .review: MonthlyReviewView()
         case .advance: AdvancePaymentView()
+        case .categories: CategoryManagementView()
+        case .paymentMethods: PaymentMethodManagementView()
         }
     }
 
@@ -175,11 +242,31 @@ struct DailyExpenseListView: View {
         .accessibilityLabel("新增支出")
     }
 
-    private func delete(_ offsets: IndexSet, in dayExpenses: [Expense]) {
-        for index in offsets {
-            modelContext.delete(dayExpenses[index])
-        }
+    private func delete(_ expense: Expense) {
+        modelContext.delete(expense)
         DailyBalanceSnapshot.refresh(using: modelContext)
+    }
+}
+
+/// Shared swipe-to-delete + long-press edit/delete menu for an expense row.
+/// Applied in both the flat list and the calendar's selected-day list so the
+/// two browse modes offer identical row actions.
+extension View {
+    func expenseRowActions(onEdit: @escaping () -> Void, onDelete: @escaping () -> Void) -> some View {
+        self
+            .swipeActions(edge: .trailing) {
+                Button(role: .destructive, action: onDelete) {
+                    Label("刪除", systemImage: "trash")
+                }
+            }
+            .contextMenu {
+                Button(action: onEdit) {
+                    Label("編輯", systemImage: "pencil")
+                }
+                Button(role: .destructive, action: onDelete) {
+                    Label("刪除", systemImage: "trash")
+                }
+            }
     }
 }
 
@@ -234,9 +321,7 @@ private struct DailyStatCard: View {
     }
 
     private var cycleLabel: String {
-        let end = Calendar.current.date(byAdding: .day, value: -1, to: cycle.end) ?? cycle.end
-        let style = Date.FormatStyle.dateTime.month(.abbreviated).day()
-        return "\(cycle.start.formatted(style)) – \(end.formatted(style))"
+        cycle.rangeLabel()
     }
 
     private func labelledAmount(_ label: String, _ amount: Decimal) -> some View {

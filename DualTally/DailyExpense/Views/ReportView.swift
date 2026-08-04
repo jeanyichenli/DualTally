@@ -2,10 +2,11 @@
 //  ReportView.swift
 //  DualTally
 //
-//  Daily-expense reports (roadmap step 7). A bar chart over the current week,
-//  month, or year, in one of three modes: total spending, a category breakdown
-//  stacked per bar, or a single category's trend over time. Aggregation lives in
-//  ReportCalculator; this view only picks options and draws the chart.
+//  Daily-expense reports (roadmap step 7). Two view modes over the current
+//  week, month, or year: a bar chart of total spending over time, or a pie
+//  chart + table comparing every category's share of spending at once.
+//  Aggregation lives in ReportCalculator; this view only picks options and
+//  draws the chart/table.
 //
 
 import SwiftUI
@@ -14,34 +15,25 @@ import Charts
 
 struct ReportView: View {
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
-    @Query(sort: \ExpenseCategory.sortOrder) private var categories: [ExpenseCategory]
 
     @State private var range: ReportRange = .month
     @State private var mode: ReportMode = .total
-    @State private var selectedCategoryName: String?
 
-    /// The bucket the user tapped on the chart, if any. Used to reveal that
-    /// bucket's value on demand instead of cluttering every bar with a label —
-    /// which would not fit a dense month view or a stacked bar.
+    /// The bucket the user tapped on the total-spending chart, if any. Used to
+    /// reveal that bucket's value on demand instead of cluttering every bar
+    /// with a label, which would not fit a dense month view.
     @State private var selectedBucketDate: Date?
 
     private var dataPoints: [ReportDataPoint] {
-        ReportCalculator.dataPoints(
-            expenses: expenses,
-            range: range,
-            mode: mode,
-            selectedCategory: resolvedCategoryName
-        )
+        ReportCalculator.dataPoints(expenses: expenses, range: range)
+    }
+
+    private var categoryTotals: [CategoryTotal] {
+        ReportCalculator.categoryTotals(expenses: expenses, range: range)
     }
 
     private var windowTotal: Decimal {
         ReportCalculator.total(expenses: expenses, range: range)
-    }
-
-    /// The category the single-category mode reports on, falling back to the
-    /// first available category if none was chosen yet.
-    private var resolvedCategoryName: String? {
-        selectedCategoryName ?? categories.first?.name
     }
 
     var body: some View {
@@ -59,14 +51,6 @@ struct ReportView: View {
                         Text(mode.label).tag(mode)
                     }
                 }
-
-                if mode == .singleCategory {
-                    Picker("分類", selection: categorySelection) {
-                        ForEach(categories) { category in
-                            Text(category.name).tag(category.name)
-                        }
-                    }
-                }
             }
 
             Section {
@@ -77,34 +61,46 @@ struct ReportView: View {
                     Text(windowTotal.formattedAsDailyCurrency())
                         .font(.headline)
                 }
-                chart
-                    .frame(height: 240)
-                    .padding(.vertical, 8)
+                switch mode {
+                case .total:
+                    totalChart
+                        .frame(height: 240)
+                        .padding(.vertical, 8)
+                case .byCategory:
+                    categoryPieChart
+                        .frame(height: 240)
+                        .padding(.vertical, 8)
+                }
+            }
+
+            if mode == .byCategory && !categoryTotals.isEmpty {
+                Section("分類明細") {
+                    ForEach(categoryTotals) { item in
+                        CategoryTotalRow(item: item)
+                    }
+                }
             }
         }
         .navigationTitle("報表")
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    // MARK: Total-spending timeline
+
     @ViewBuilder
-    private var chart: some View {
+    private var totalChart: some View {
         if dataPoints.isEmpty {
-            ContentUnavailableView(
-                "本\(range.label)尚無支出",
-                systemImage: "chart.bar",
-                description: Text("這段期間沒有可統計的支出")
-            )
-            .frame(maxWidth: .infinity)
+            emptyState
         } else {
             Chart(dataPoints) { point in
                 BarMark(
-                    x: .value("期間", point.bucketDate, unit: range.bucketComponent),
+                    x: .value("日期", point.bucketDate, unit: range.bucketComponent),
                     y: .value("金額", point.amountValue)
                 )
-                .foregroundStyle(by: .value("分類", point.categoryName))
+                .foregroundStyle(Color.accentColor)
 
                 if let selection, selection.date == point.bucketDate {
-                    RuleMark(x: .value("期間", selection.date, unit: range.bucketComponent))
+                    RuleMark(x: .value("日期", selection.date, unit: range.bucketComponent))
                         .foregroundStyle(Color.secondary.opacity(0.3))
                         .annotation(
                             position: .top,
@@ -115,8 +111,9 @@ struct ReportView: View {
                         }
                 }
             }
-            .chartLegend(mode == .byCategory ? .visible : .hidden)
             .chartXSelection(value: $selectedBucketDate)
+            .chartXAxisLabel(range == .year ? "月份" : "日期")
+            .chartYAxisLabel("金額（\(Decimal.dailyCurrencyCode)）")
             .chartXAxis {
                 AxisMarks(values: .stride(by: axisStrideComponent, count: axisStrideCount)) {
                     AxisGridLine()
@@ -125,12 +122,11 @@ struct ReportView: View {
                 }
             }
             .onChange(of: range) { selectedBucketDate = nil }
-            .onChange(of: mode) { selectedBucketDate = nil }
         }
     }
 
-    /// The little value label shown above the tapped bar: the period and its
-    /// total (the sum of every category segment in that bucket).
+    /// The little value label shown above the tapped bar, including the
+    /// currency unit.
     private func selectionCallout(_ selection: (date: Date, total: Decimal)) -> some View {
         VStack(spacing: 2) {
             Text(selection.date.formatted(axisLabelFormat))
@@ -144,15 +140,12 @@ struct ReportView: View {
         .background(RoundedRectangle(cornerRadius: 6).fill(Color(.secondarySystemBackground)))
     }
 
-    /// The tapped bucket resolved to the nearest bar that has data, with that
-    /// bucket's total across all its category segments.
+    /// The tapped bucket resolved to the nearest bar that has data.
     private var selection: (date: Date, total: Decimal)? {
         guard let selectedBucketDate, let bucket = nearestBucket(to: selectedBucketDate) else {
             return nil
         }
-        let total = dataPoints
-            .filter { $0.bucketDate == bucket }
-            .reduce(Decimal.zero) { $0 + $1.amount }
+        let total = dataPoints.first { $0.bucketDate == bucket }?.amount ?? .zero
         return (bucket, total)
     }
 
@@ -161,15 +154,6 @@ struct ReportView: View {
         dataPoints
             .map(\.bucketDate)
             .min { abs($0.timeIntervalSince(date)) < abs($1.timeIntervalSince(date)) }
-    }
-
-    /// Binding that keeps the segmented single-category picker in sync with the
-    /// resolved fallback, so it shows a selection even before the user taps one.
-    private var categorySelection: Binding<String> {
-        Binding(
-            get: { resolvedCategoryName ?? "" },
-            set: { selectedCategoryName = $0 }
-        )
     }
 
     private var axisStrideComponent: Calendar.Component {
@@ -186,9 +170,58 @@ struct ReportView: View {
         }
     }
 
+    /// Every tick spells out the month so a day number is never ambiguous
+    /// about which month it falls in.
     private var axisLabelFormat: Date.FormatStyle {
         range == .year
-            ? .dateTime.month(.narrow)
-            : .dateTime.day()
+            ? .dateTime.month(.abbreviated)
+            : .dateTime.month(.abbreviated).day()
+    }
+
+    // MARK: Category comparison
+
+    @ViewBuilder
+    private var categoryPieChart: some View {
+        if categoryTotals.isEmpty {
+            emptyState
+        } else {
+            Chart(categoryTotals) { item in
+                SectorMark(
+                    angle: .value("金額", item.totalValue),
+                    innerRadius: .ratio(0.55),
+                    angularInset: 1.5
+                )
+                .foregroundStyle(by: .value("分類", item.categoryName))
+                .cornerRadius(3)
+            }
+        }
+    }
+
+    private var emptyState: some View {
+        ContentUnavailableView(
+            "本\(range.label)尚無支出",
+            systemImage: "chart.bar",
+            description: Text("這段期間沒有可統計的支出")
+        )
+        .frame(maxWidth: .infinity)
+    }
+}
+
+/// One row in the category breakdown table: name, total spend (including
+/// unpaid and outstanding advances), and share of the window's spending.
+private struct CategoryTotalRow: View {
+    let item: CategoryTotal
+
+    var body: some View {
+        HStack {
+            Text(item.categoryName)
+            Spacer()
+            Text(item.total.formattedAsDailyCurrency())
+                .foregroundStyle(.secondary)
+            Text(item.share.formatted(.percent.precision(.fractionLength(0))))
+                .frame(width: 48, alignment: .trailing)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
     }
 }

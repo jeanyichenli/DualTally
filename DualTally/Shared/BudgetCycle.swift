@@ -24,6 +24,13 @@ struct BudgetCycle: Equatable {
     func contains(_ date: Date) -> Bool {
         date >= start && date < end
     }
+
+    /// "M/d – M/d" label for the cycle's inclusive date range, e.g. "Aug 1 – Aug 31".
+    func rangeLabel(calendar: Calendar = .current) -> String {
+        let end = calendar.date(byAdding: .day, value: -1, to: end) ?? end
+        let style = Date.FormatStyle.dateTime.month(.abbreviated).day()
+        return "\(start.formatted(style)) – \(end.formatted(style))"
+    }
 }
 
 enum BudgetCycleCalculator {

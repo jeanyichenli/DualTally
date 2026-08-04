@@ -43,52 +43,51 @@ struct ReportCalculatorTests {
 
     // MARK: Data points
 
-    @Test("Total mode sums each bucket under one series key")
-    func totalMode() {
+    @Test("Total timeline sums each bucket")
+    func totalTimeline() {
         let expenses = [
             Fixture.expense(100, on: Fixture.date(2026, 7, 10)),
             Fixture.expense(50, on: Fixture.date(2026, 7, 10)),
             Fixture.expense(70, on: Fixture.date(2026, 7, 12)),
         ]
         let points = ReportCalculator.dataPoints(
-            expenses: expenses, range: .month, mode: .total, now: now, calendar: calendar
+            expenses: expenses, range: .month, now: now, calendar: calendar
         )
         #expect(points.count == 2)
-        #expect(points.allSatisfy { $0.categoryName == ReportCalculator.totalSeriesKey })
         #expect(points.first?.amount == 150)
         #expect(points.last?.amount == 70)
     }
 
-    @Test("Category mode emits one segment per category in a bucket")
-    func byCategoryMode() {
-        let food = Fixture.category("飲食")
-        let transport = Fixture.category("交通")
-        let expenses = [
-            Fixture.expense(100, on: Fixture.date(2026, 7, 10), category: food),
-            Fixture.expense(40, on: Fixture.date(2026, 7, 10), category: transport),
-        ]
-        let points = ReportCalculator.dataPoints(
-            expenses: expenses, range: .month, mode: .byCategory, now: now, calendar: calendar
-        )
-        #expect(points.count == 2)
-        #expect(Set(points.map(\.categoryName)) == ["飲食", "交通"])
-    }
-
-    @Test("Single-category mode keeps only the chosen category")
-    func singleCategoryMode() {
+    @Test("Category totals sum each category across the whole window with its share")
+    func categoryTotals() {
         let food = Fixture.category("飲食")
         let transport = Fixture.category("交通")
         let expenses = [
             Fixture.expense(100, on: Fixture.date(2026, 7, 10), category: food),
             Fixture.expense(40, on: Fixture.date(2026, 7, 12), category: transport),
         ]
-        let points = ReportCalculator.dataPoints(
-            expenses: expenses, range: .month, mode: .singleCategory,
-            selectedCategory: "飲食", now: now, calendar: calendar
+        let totals = ReportCalculator.categoryTotals(
+            expenses: expenses, range: .month, now: now, calendar: calendar
         )
-        #expect(points.count == 1)
-        #expect(points.first?.categoryName == "飲食")
-        #expect(points.first?.amount == 100)
+        #expect(totals.count == 2)
+        #expect(totals.first?.categoryName == "飲食")
+        #expect(totals.first?.total == 100)
+        #expect(totals.first?.share == 100.0 / 140.0)
+        #expect(totals.last?.categoryName == "交通")
+        #expect(totals.last?.total == 40)
+    }
+
+    @Test("Category totals include unpaid and outstanding-advance expenses")
+    func categoryTotalsIncludeUnpaidAndAdvances() {
+        let food = Fixture.category("飲食")
+        let expenses = [
+            Fixture.expense(100, on: Fixture.date(2026, 7, 10), category: food, isPaid: false),
+            Fixture.expense(30, on: Fixture.date(2026, 7, 11), category: food, advanceFor: "Amy", repaid: false),
+        ]
+        let totals = ReportCalculator.categoryTotals(
+            expenses: expenses, range: .month, now: now, calendar: calendar
+        )
+        #expect(totals.first?.total == 130)
     }
 
     @Test("Expenses outside the window are ignored")

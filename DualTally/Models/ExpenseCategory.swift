@@ -49,7 +49,8 @@ extension ExpenseCategory {
         ("其他", "ellipsis.circle.fill"),
     ]
 
-    /// SF Symbols offered when the user creates or edits a category.
+    /// SF Symbols offered when the user creates or edits a category. The user
+    /// can also type any other SF Symbol name directly (see AddCategoryView).
     static let symbolChoices: [String] = [
         "fork.knife", "car.fill", "gamecontroller.fill", "cross.case.fill",
         "bag.fill", "house.fill", "book.fill", "cup.and.saucer.fill",
@@ -57,6 +58,19 @@ extension ExpenseCategory {
         "creditcard.fill", "wrench.and.screwdriver.fill", "heart.fill",
         "tshirt.fill", "cart.fill", "phone.fill", "bolt.fill",
         "ellipsis.circle.fill",
+        "fuelpump.fill", "bus.fill", "bicycle", "figure.walk",
+        "parkingsign", "fork.knife.circle.fill", "wineglass.fill",
+        "takeoutbag.and.cup.and.straw.fill", "birthday.cake.fill",
+        "popcorn.fill", "film.fill", "music.note", "ticket.fill",
+        "sportscourt.fill", "figure.run", "dumbbell.fill",
+        "pills.fill", "stethoscope", "bandage.fill", "eyeglasses",
+        "washer.fill", "sofa.fill", "lightbulb.fill", "wifi",
+        "graduationcap.fill", "pencil.and.ruler.fill", "paintpalette.fill",
+        "briefcase.fill", "banknote.fill", "gift", "cat.fill", "dog.fill",
+        "leaf.fill", "umbrella.fill", "scissors", "hammer.fill",
+        "envelope.fill", "printer.fill", "camera.fill", "gamecontroller",
+        "figure.2.and.child.holdinghands", "person.2.fill", "star.fill",
+        "tag.fill",
     ]
 
     private static let didSeedDefaultsKey = "didSeedDefaultCategories"

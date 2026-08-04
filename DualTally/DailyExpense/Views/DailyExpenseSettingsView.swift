@@ -4,7 +4,9 @@
 //
 //  Sets the budget for the current cycle and the app-wide month start day.
 //  Reached by tapping the stat-card. Changing either recomputes the available
-//  balance, so the widget timeline is reloaded on save.
+//  balance, so the widget timeline is reloaded on save. Category and payment
+//  method management live under the toolbar's "設定" submenu instead of here,
+//  so this stays focused on the budget itself.
 //
 
 import SwiftUI
@@ -19,14 +21,21 @@ struct DailyExpenseSettingsView: View {
     @State private var startDay: Int
     @State private var budgetText: String
 
-    init() {
+    /// A date inside the cycle being configured. Defaults to today, but the
+    /// caller passes the start of whatever cycle is currently browsed (see
+    /// DailyExpenseListView's cycle navigator) so editing the budget always
+    /// targets the period actually on screen, not always "this month".
+    private let referenceDate: Date
+
+    init(referenceDate: Date = Date()) {
+        self.referenceDate = referenceDate
         _startDay = State(initialValue: MonthStartDaySetting.current)
         _budgetText = State(initialValue: "")
     }
 
     /// The cycle currently being configured, driven by the chosen start day.
     private var cycle: BudgetCycle {
-        BudgetCycleCalculator.cycle(containing: Date(), startDay: startDay)
+        BudgetCycleCalculator.cycle(containing: referenceDate, startDay: startDay)
     }
 
     private var budgetForCycle: MonthlyBudget? {
@@ -60,19 +69,6 @@ struct DailyExpenseSettingsView: View {
                 } footer: {
                     Text("一個「月」從這天開始，可設 1–28 號以對齊薪水日等週期。")
                 }
-
-                Section {
-                    NavigationLink {
-                        CategoryManagementView()
-                    } label: {
-                        Label("分類管理", systemImage: "tag")
-                    }
-                    NavigationLink {
-                        PaymentMethodManagementView()
-                    } label: {
-                        Label("支付方式", systemImage: "creditcard")
-                    }
-                }
             }
             .navigationTitle("預算設定")
             .navigationBarTitleDisplayMode(.inline)
@@ -91,9 +87,7 @@ struct DailyExpenseSettingsView: View {
     }
 
     private var cycleRangeDescription: String {
-        let end = Calendar.current.date(byAdding: .day, value: -1, to: cycle.end) ?? cycle.end
-        let formatter = Date.FormatStyle.dateTime.month(.abbreviated).day()
-        return "本週期：\(cycle.start.formatted(formatter)) – \(end.formatted(formatter))"
+        "本週期：\(cycle.rangeLabel())"
     }
 
     private func loadBudgetText() {

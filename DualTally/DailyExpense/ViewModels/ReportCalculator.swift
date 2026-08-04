@@ -34,14 +34,13 @@ enum ReportRange: CaseIterable, Identifiable {
     }
 }
 
-/// How the bars are broken down.
+/// How the report is broken down.
 enum ReportMode: CaseIterable, Identifiable {
-    /// One bar per bucket, height = total spending.
+    /// One bar per bucket, height = total spending over time.
     case total
-    /// One bar per bucket, stacked by category.
+    /// Every category's spending share for the whole window, compared at once
+    /// via a pie chart and a table (see `ReportCalculator.categoryTotals`).
     case byCategory
-    /// One bar per bucket for a single chosen category's spending over time.
-    case singleCategory
 
     var id: Self { self }
 
@@ -49,21 +48,16 @@ enum ReportMode: CaseIterable, Identifiable {
         switch self {
         case .total: return "總支出"
         case .byCategory: return "分類佔比"
-        case .singleCategory: return "依分類"
         }
     }
 }
 
-/// One bar segment: an amount within a bucket, tagged with the category it
-/// belongs to (a fixed key for non-stacked modes).
+/// One bar segment in the total-spending timeline: a bucket's summed amount.
 struct ReportDataPoint: Identifiable {
     let id = UUID()
 
     /// Start of the bucket this point sits in; used as the chart's x value.
     let bucketDate: Date
-
-    /// Category name for stacking/colouring. A fixed key for total mode.
-    let categoryName: String
 
     let amount: Decimal
 
@@ -73,11 +67,26 @@ struct ReportDataPoint: Identifiable {
     }
 }
 
-enum ReportCalculator {
-    /// Fixed series key used when a report is not broken down by category, so
-    /// the chart still has a single stable colour/legend entry.
-    static let totalSeriesKey = "支出"
+/// One category's spending for the whole report window: its total and share
+/// of every counted expense in that window, for the "分類佔比" pie chart and
+/// table.
+struct CategoryTotal: Identifiable {
+    let id = UUID()
 
+    let categoryName: String
+    let total: Decimal
+
+    /// Fraction of the window's grand total, `0...1`. Zero when there is no
+    /// spending in the window at all.
+    let share: Double
+
+    /// Chart-plottable amount.
+    var totalValue: Double {
+        NSDecimalNumber(decimal: total).doubleValue
+    }
+}
+
+enum ReportCalculator {
     /// The half-open date window `[start, end)` a range covers, anchored on
     /// `now`: the current calendar week, month, or year.
     static func window(
@@ -113,14 +122,12 @@ enum ReportCalculator {
         return starts
     }
 
-    /// Builds the chart data points for a range, mode, and (for single-category
-    /// mode) a chosen category name. Empty buckets are omitted; the chart still
-    /// spans the full window via its x-scale domain.
+    /// Builds the total-spending timeline for a range: one point per bucket,
+    /// summing every counted expense that falls in it. Empty buckets are
+    /// omitted; the chart still spans the full window via its x-scale domain.
     static func dataPoints(
         expenses: [Expense],
         range: ReportRange,
-        mode: ReportMode,
-        selectedCategory: String? = nil,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> [ReportDataPoint] {
@@ -133,29 +140,41 @@ enum ReportCalculator {
             bucketStart(for: expense.date, range: range, windowStart: start, calendar: calendar)
         }
 
-        var points: [ReportDataPoint] = []
-        for (bucketDate, bucketExpenses) in grouped {
-            switch mode {
-            case .total:
+        return grouped
+            .map { bucketDate, bucketExpenses in
                 let sum = bucketExpenses.reduce(Decimal.zero) { $0 + $1.amount }
-                points.append(ReportDataPoint(bucketDate: bucketDate, categoryName: totalSeriesKey, amount: sum))
-
-            case .singleCategory:
-                let matching = bucketExpenses.filter { ($0.category?.name ?? "未分類") == selectedCategory }
-                let sum = matching.reduce(Decimal.zero) { $0 + $1.amount }
-                if sum > 0 {
-                    points.append(ReportDataPoint(bucketDate: bucketDate, categoryName: selectedCategory ?? "未分類", amount: sum))
-                }
-
-            case .byCategory:
-                let byCategory = Dictionary(grouping: bucketExpenses) { $0.category?.name ?? "未分類" }
-                for (categoryName, categoryExpenses) in byCategory {
-                    let sum = categoryExpenses.reduce(Decimal.zero) { $0 + $1.amount }
-                    points.append(ReportDataPoint(bucketDate: bucketDate, categoryName: categoryName, amount: sum))
-                }
+                return ReportDataPoint(bucketDate: bucketDate, amount: sum)
             }
+            .sorted { $0.bucketDate < $1.bucketDate }
+    }
+
+    /// Every category's total and share of spending across a range's whole
+    /// window (not bucketed by time), sorted by total descending, for the
+    /// "分類佔比" pie chart and table. Includes unpaid and outstanding-advance
+    /// expenses, same as every other counted total; excludes repaid advances.
+    static func categoryTotals(
+        expenses: [Expense],
+        range: ReportRange,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> [CategoryTotal] {
+        let (start, end) = window(for: range, now: now, calendar: calendar)
+        let inWindow = expenses.filter {
+            $0.countsAsSpending && $0.date >= start && $0.date < end
         }
-        return points.sorted { $0.bucketDate < $1.bucketDate }
+        let grandTotal = inWindow.reduce(Decimal.zero) { $0 + $1.amount }
+        let grandTotalValue = NSDecimalNumber(decimal: grandTotal).doubleValue
+
+        let byCategory = Dictionary(grouping: inWindow) { $0.category?.name ?? "未分類" }
+        return byCategory
+            .map { categoryName, categoryExpenses -> CategoryTotal in
+                let sum = categoryExpenses.reduce(Decimal.zero) { $0 + $1.amount }
+                let share = grandTotalValue > 0
+                    ? NSDecimalNumber(decimal: sum).doubleValue / grandTotalValue
+                    : 0
+                return CategoryTotal(categoryName: categoryName, total: sum, share: share)
+            }
+            .sorted { $0.total > $1.total }
     }
 
     /// Total counted spending across a range's window, for the headline number.

@@ -30,6 +30,10 @@ struct MonthlyReviewView: View {
         DailyExpenseCalculator.impulseReviewSummary(reviewableExpenses)
     }
 
+    private var cycleRangeLabel: String {
+        cycle.rangeLabel()
+    }
+
     var body: some View {
         Group {
             if reviewableExpenses.isEmpty {
@@ -54,7 +58,7 @@ struct MonthlyReviewView: View {
                 Text("點一筆支出可標記／取消「衝動購物」。此標記只影響復盤統計，不影響餘額。")
             }
 
-            Section("本週期支出") {
+            Section("本週期支出（\(cycleRangeLabel)）") {
                 ForEach(reviewableExpenses) { expense in
                     Button {
                         expense.isImpulse.toggle()

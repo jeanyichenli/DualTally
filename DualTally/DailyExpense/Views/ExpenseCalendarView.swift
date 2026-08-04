@@ -11,11 +11,14 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ExpenseCalendarView: View {
     /// All expenses; day filtering happens locally so dots and subtotals stay in
     /// sync with the stat-card's source data.
     let expenses: [Expense]
+
+    @Environment(\.modelContext) private var modelContext
 
     private let calendar = Calendar.current
 
@@ -184,6 +187,10 @@ struct ExpenseCalendarView: View {
                             ExpenseRow(expense: expense)
                         }
                         .buttonStyle(.plain)
+                        .expenseRowActions(
+                            onEdit: { editingExpense = expense },
+                            onDelete: { delete(expense) }
+                        )
                     }
                 }
                 .listStyle(.plain)
@@ -204,6 +211,11 @@ struct ExpenseCalendarView: View {
             calendar.date(byAdding: .day, value: dayOffset - 1, to: firstOfMonth)
         }
         return blanks + days
+    }
+
+    private func delete(_ expense: Expense) {
+        modelContext.delete(expense)
+        DailyBalanceSnapshot.refresh(using: modelContext)
     }
 
     private func changeMonth(by delta: Int) {
